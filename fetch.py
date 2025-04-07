@@ -46,6 +46,16 @@ try:
                     order = re.findall(pattern=order_pattern, string=td_text)
                     if len(tracking) > 0 and len(order) > 0:
                         break
+                 
+                for y in soup.find_all('p'):
+                    p_text = y.get_text()
+                    e_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
+                    tracking = re.findall(pattern=e_tracking_pattern, string=p_text)
+                    print(f'tracking #: {tracking[0]}')
+                    if len(tracking) > 0:
+                        break
+
+                
 
         shipping_td = soup.find("td", string=lambda t: t and 'Shipping Address' in t)  
 
