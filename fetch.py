@@ -28,11 +28,12 @@ try:
 
         for part in raw_email.walk():
             content_type = part.get_content_type()
-
+            
+            # Keurig email scraping
             if content_type == 'text/html':
                 pl = part.get_payload(decode=True)
                 soup = BeautifulSoup(pl, 'html.parser')
-
+                print(pl)
                 for x in soup.find_all("td"):
                     td_text = x.get_text()
                     tracking_pattern = re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE)
