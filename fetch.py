@@ -9,14 +9,15 @@ mail = imaplib.IMAP4_SSL("imap.gmail.com")
 
 email_address = os.getenv("EMAIL_ADDRESS")
 email_password = os.getenv("EMAIL_PASSWORD")
-email_from = os.getenv("EMAIL_FROM")
+email_from_1 = os.getenv("EMAIL_FROM_1")
+email_from_2 = os.getenv("EMAIL_FROM_2")
 
 mail.login(email_address, email_password)
 
 try:
     print('Login Successful')
     mail.select('INBOX')
-    status, result = mail.search(None, 'From', f'{email_from}')
+    status, result = mail.search(None, f'OR FROM {email_from_1} FROM {email_from_2}')
 
     email_ids = result[0].split()
     for i in range(len(email_ids)):
@@ -26,69 +27,79 @@ try:
 
         subject, encoding = decode_header(raw_email['Subject'])[0]
 
-        print(subject)
+        if 'Order update' in str(subject):
+            for part in raw_email.walk():
+                content_type = part.get_content_type()
 
-        for part in raw_email.walk():
-            content_type = part.get_content_type()
-
-        
-            # Keurig email scraping
-            if content_type == 'text/html':
-                pl = part.get_payload(decode=True)
-                soup = BeautifulSoup(pl, 'html.parser')
-                
-                # print(pl)
-                for x in soup.find_all('td'):
-                    td_text = x.get_text()
-                    tracking_pattern = re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE)
-                    order_pattern = re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE)
-                    tracking = re.findall(pattern=tracking_pattern, string=td_text)
-                    order = re.findall(pattern=order_pattern, string=td_text)
-                    if len(tracking) > 0 and len(order) > 0:
-                        break
-                 
-                for y in soup.find_all('p'):
-                    p_text = y.get_text()
-                    e_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
-                    tracking = re.findall(pattern=e_tracking_pattern, string=p_text)
-                    print(f'tracking #: {tracking[0]}')
-                    print(p_text)
-                    if len(tracking) > 0:
-                        break
+            
+                if content_type == 'text/html':
+                    pl = part.get_payload(decode=True)
+                    soup = BeautifulSoup(pl, 'html.parser')
                     
-                for s in soup.find_all('span'):
-                    sp_text = s.get_text().strip()
-                    e_order_pattern = re.compile(r'^\s*\d{2}-\d{5}-\d{5}$\s*')
-                    order = re.findall(pattern=e_order_pattern, string=sp_text)
-                    print(f'Order number: {order}')
-                    if len(order) > 0:
-                        break
-        
+                    # Ebay order number scrape 
+                    for s in soup.find_all('span'):
+                        sp_text = s.get_text()
+                        e_order_pattern = re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$')
+                        order = re.findall(pattern=e_order_pattern, string=sp_text)
+                        if len(order) > 0:
+                            break
+                    
+                    # If no ebay order number look for keurig order number
+                    # Keurig tracking and order number scrape
+                    if len(order) <= 0:
+                        for x in soup.find_all('td'):
+                            td_text = x.get_text()
+                            tracking_pattern = re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE)
+                            order_pattern = re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE)
+                            tracking = re.findall(pattern=tracking_pattern, string=td_text)
+                            order = re.findall(pattern=order_pattern, string=td_text)
+                            if len(tracking) > 0 and len(order) > 0:
+                                break
+                    
+                    # Ebay tracking number scrape
+                    for y in soup.find_all('p'):
+                        p_text = y.get_text().lstrip()
+                        e_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
+                        tracking = re.findall(pattern=e_tracking_pattern, string=p_text)
+                        if len(tracking) > 0:
+                            break  
+                    
+            
+                    # ebay and keurig shipping address scraping 
+                    shipping_td = soup.find('td', string=lambda t: t and 'Shipping Address' in t)
+                    e_shipping_h3 = soup.find('h3', string=lambda text: text and 'Your order will ' in text)  
 
-        shipping_td = soup.find("td", string=lambda t: t and 'Shipping Address' in t)  
+                    # Keurig shipping address scrape
+                    if shipping_td:
+                        parent_tr = shipping_td.find_parent('tr')
+                        address_table = parent_tr.find_parent('table')
+                        all_rows = address_table.find_all('tr')
 
-        if shipping_td:
-            parent_tr = shipping_td.find_parent('tr')
-            address_table = parent_tr.find_parent('table')
-            all_rows = address_table.find_all('tr')
+                        start_index = all_rows.index(parent_tr) + 1
+                        address_lines = []
 
-            start_index = all_rows.index(parent_tr) + 1
-            address_lines = []
+                        for row in all_rows[start_index:]:
+                            tds = row.find_all('td')
+                            for td in tds:
+                                text = td.get_text()
+                                text = text.lstrip()
+                                if text not in address_lines:
+                                    address_lines.append(text)
 
-            for row in all_rows[start_index:]:
-                tds = row.find_all('td')
-                for td in tds:
-                    text = td.get_text()
-                    text = text.lstrip()
-                    if text not in address_lines:
-                        address_lines.append(text)
+                        address_lines = [item for item in address_lines if item != '']
+                        full_address = "\n".join(address_lines)
+                    elif e_shipping_h3:
+                        shipping_p = e_shipping_h3.find_next_sibling('p')
+                        if shipping_p:
+                            full_address = shipping_p.get_text(separator='\n').strip()
 
-            address_lines = [item for item in address_lines if item != '']
-            full_address = "\n".join(address_lines)
+
+
+
 
         
             print(f'tracking #: {tracking[0]}')
-            # print(f'order #: {order[0]}')
+            print(f'order #: {order[0]}')
             print(f'Shipping Address: \n{full_address}')
 
 
