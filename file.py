@@ -29,10 +29,15 @@ print(data)
 
 ws = wb['ShippingConfirmation']
 
-# for i, row_data in enumerate(data, start=2):
-ws.cell(row=2, column=1, value='hey')
+max_row = ws.max_row
+
+for i, row_data in enumerate(data, start=max_row +1):
+    ws.cell(row=i, column=1, value=row_data[0])
+    ws.cell(row=i, column=6, value=row_data[1])
+    ws.cell(row=i, column=5, value=row_data[2])
     # print(i)
     # print(row_data)
+wb.save(filename=file_path)
 
 
 
