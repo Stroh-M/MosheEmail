@@ -8,20 +8,31 @@ wb = load_workbook(file_path)
 # List available sheet names (for debugging)
 print("Available sheets:", wb.sheetnames)
 
-# Access specific sheet
-sheet = wb['ShippingConfirmation']
+order_number = 67847346292349
+tracking_number = 634926538593480
+carrier = 'UPS'
 
-# Show existing value before change
-print("Before:", sheet.cell(row=2, column=3).value)
+data = []
+a = True
+b = 0
+while a:
+    data.append([order_number, tracking_number, carrier])
+    order_number = order_number + 10
+    tracking_number = tracking_number + 10
+    b += 1 
+    if b == 10:
+        a = False
 
-# Write new value to C1
-sheet.cell(row=2, column=3, value='new value')
 
-# Show value after change
-print("After:", sheet.cell(row=1, column=3).value)
+print(data)
 
-# Save the changes
-wb.save(file_path)
+
+ws = wb['ShippingConfirmation']
+
+# for i, row_data in enumerate(data, start=2):
+ws.cell(row=2, column=1, value='hey')
+    # print(i)
+    # print(row_data)
 
 
 
