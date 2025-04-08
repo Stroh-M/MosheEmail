@@ -52,10 +52,18 @@ try:
                     e_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
                     tracking = re.findall(pattern=e_tracking_pattern, string=p_text)
                     print(f'tracking #: {tracking[0]}')
+                    print(p_text)
                     if len(tracking) > 0:
                         break
-
-                
+                    
+                for s in soup.find_all('span'):
+                    sp_text = s.get_text().strip()
+                    e_order_pattern = re.compile(r'^\s*\d{2}-\d{5}-\d{5}$\s*')
+                    order = re.findall(pattern=e_order_pattern, string=sp_text)
+                    print(f'Order number: {order}')
+                    if len(order) > 0:
+                        break
+        
 
         shipping_td = soup.find("td", string=lambda t: t and 'Shipping Address' in t)  
 
@@ -80,7 +88,7 @@ try:
 
         
             print(f'tracking #: {tracking[0]}')
-            print(f'order #: {order[0]}')
+            # print(f'order #: {order[0]}')
             print(f'Shipping Address: \n{full_address}')
 
 
