@@ -1,4 +1,4 @@
-from openpyxl import load_workbook
+from openpyxl import load_workbook #type: ignore 
 
 file_path = r'C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\Flat.File.ShippingConfirm (1).xlsx'
 
