@@ -159,10 +159,25 @@ try:
                 smtp.login(email_address, email_password)
                 smtp.send_message(msg=msg)
         else:
-            print(i)
-            print(f'tracking #: {tracking}')
-            print(f'order #: {order}')
-            print(f'Shipping Address: \n{full_address}')
+            # print(i)
+            # print(f'tracking #: {tracking}')
+            # print(f'order #: {order}')
+            # print(f'Shipping Address: \n{full_address}')
+            zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
+            zip_code = re.findall(pattern=zip_code_pattern, string=full_address)
+            address = re.split(r'\t+', full_address)
+            first_name = address[0]
+            zip = zip_code[-1]
+            print(first_name)
+            print(zip)
+            with open('C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\118763359755020187.txt', 'r') as file:
+                reader = csv.reader(file, delimiter='\t')
+                for row_n, row in enumerate(list(reader)):
+                    if len(row) > 0:
+                        if re.sub(r'\s+', ' ', first_name).strip() in row[17] and zip in row[23]:
+                            a_order_id = row[0]
+                            print(row_n)
+                            print(a_order_id)
 
 
         
