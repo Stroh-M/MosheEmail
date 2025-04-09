@@ -1,45 +1,53 @@
-from openpyxl import load_workbook #type: ignore 
+# from openpyxl import load_workbook #type: ignore 
 
-file_path = r'C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\Flat.File.ShippingConfirm (1).xlsx'
+# file_path = r'C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\Flat.File.ShippingConfirm (1).xlsx'
 
-# Load workbook
-wb = load_workbook(file_path)
+# # Load workbook
+# wb = load_workbook(file_path)
 
-# List available sheet names (for debugging)
-print("Available sheets:", wb.sheetnames)
+# # List available sheet names (for debugging)
+# print("Available sheets:", wb.sheetnames)
 
-order_number = 67847346292349
-tracking_number = 634926538593480
-carrier = 'UPS'
+# order_number = 67847346292349
+# tracking_number = 634926538593480
+# carrier = 'UPS'
 
-data = []
-a = True
-b = 0
-while a:
-    data.append([order_number, tracking_number, carrier])
-    order_number = order_number + 10
-    tracking_number = tracking_number + 10
-    b += 1 
-    if b == 10:
-        a = False
-
-
-print(data)
+# data = []
+# a = True
+# b = 0
+# while a:
+#     data.append([order_number, tracking_number, carrier])
+#     order_number = order_number + 10
+#     tracking_number = tracking_number + 10
+#     b += 1 
+#     if b == 10:
+#         a = False
 
 
-ws = wb['ShippingConfirmation']
-
-max_row = ws.max_row
-
-for i, row_data in enumerate(data, start=max_row +1):
-    ws.cell(row=i, column=1, value=row_data[0])
-    ws.cell(row=i, column=6, value=row_data[1])
-    ws.cell(row=i, column=5, value=row_data[2])
-    # print(i)
-    # print(row_data)
-wb.save(filename=file_path)
+# print(data)
 
 
+# ws = wb['ShippingConfirmation']
+
+# max_row = ws.max_row
+
+# for i, row_data in enumerate(data, start=max_row +1):
+#     ws.cell(row=i, column=1, value=row_data[0])
+#     ws.cell(row=i, column=6, value=row_data[1])
+#     ws.cell(row=i, column=5, value=row_data[2])
+#     # print(i)
+#     # print(row_data)
+# wb.save(filename=file_path)
+
+
+import os
+
+file_path = 'C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\Flat.File.ShippingConfirm (1).xlsx'
+
+if not os.path.exists(file_path):
+    print("❌ File does not exist.")
+else:
+    print("✅ File exists.")
 
 
 

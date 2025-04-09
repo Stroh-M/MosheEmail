@@ -1,12 +1,11 @@
 import imaplib, email, os, re, csv, smtplib
+from openpyxl import load_workbook #type: ignore
 from email.message import EmailMessage
 from email.header import decode_header
 from bs4 import BeautifulSoup #type: ignore
 from dotenv import load_dotenv #type: ignore
 
 load_dotenv(override=True)
-
-mail = imaplib.IMAP4_SSL("imap.gmail.com")
 
 email_address = os.getenv("EMAIL_ADDRESS")
 email_password = os.getenv("EMAIL_PASSWORD")
@@ -16,8 +15,13 @@ recipient_1 = os.getenv("RECIPIENT_1")
 recipient_2 = os.getenv("RECIPIENT_2")
 
 recipients = [recipient_1, recipient_2]
+excel_file_path = 'C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\Flat.File.ShippingConfirm (1).xlsx'
+
+mail = imaplib.IMAP4_SSL("imap.gmail.com")
+smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
 
 mail.login(email_address, email_password)
+smtp.login(email_address, email_password)
 
 try:
     print('Login Successful')
@@ -120,9 +124,7 @@ try:
                                         P.S. There might be more issues with this email</p>
                                     <a href="{href}">Track Order</a>''', subtype='html')
 
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                smtp.login(email_address, email_password)
-                smtp.send_message(msg=msg)
+            smtp.send_message(msg=msg)
         elif len(order) <= 0:
             msg = EmailMessage()
             msg['Subject'] = 'Missing order number'
@@ -137,9 +139,7 @@ try:
                                         P.S. There might be more issues with this email</p>
                                     <a href="{href}">Track Order</a>''', subtype='html')
 
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                smtp.login(email_address, email_password)
-                smtp.send_message(msg=msg)
+            smtp.send_message(msg=msg)
 
         elif full_address == None or full_address == '':
             msg = EmailMessage()
@@ -155,9 +155,8 @@ try:
                                         P.S. There might be more issues with this email</p>
                                     <a href="{href}">Track Order</a>''', subtype='html')
 
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                smtp.login(email_address, email_password)
-                smtp.send_message(msg=msg)
+            
+            smtp.send_message(msg=msg)
         else:
             # print(i)
             # print(f'tracking #: {tracking}')
@@ -176,8 +175,25 @@ try:
                     if len(row) > 0:
                         if re.sub(r'\s+', ' ', first_name).strip() in row[17] and zip in row[23]:
                             a_order_id = row[0]
-                            print(row_n)
-                            print(a_order_id)
+
+                            data = []
+                            carrier = 'UPS'
+                            
+                            data.append([order[0], tracking[0], a_order_id, carrier])
+
+                            
+                            wb = load_workbook(excel_file_path)
+                            sheet = wb['ShippingConfirmation']
+
+                            max_row = sheet.max_row
+
+                            for row_num, data_to_append in enumerate(data, start=max_row + 1):
+                                sheet.cell(row=row_num, column=1, value=data_to_append[2])
+                                sheet.cell(row=row_num, column=7, value=data_to_append[1])
+                                sheet.cell(row=row_num, column=5, value=data_to_append[3])
+                                sheet.cell(row=row_num, column=2, value=data_to_append[0])
+
+                            wb.save(excel_file_path)
 
 
         
