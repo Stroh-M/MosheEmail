@@ -166,10 +166,6 @@ try:
             
             smtp.send_message(msg=msg)
         else:
-            # print(i)
-            # print(f'tracking #: {tracking}')
-            # print(f'order #: {order}')
-            # print(f'Shipping Address: \n{full_address}')
             zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
             zip_code = re.findall(pattern=zip_code_pattern, string=full_address)
             address = re.split(r'\t+', full_address)
