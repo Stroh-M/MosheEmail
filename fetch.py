@@ -1,4 +1,5 @@
-import imaplib, email, os, re, csv
+import imaplib, email, os, re, csv, smtplib
+from email.message import EmailMessage
 from email.header import decode_header
 from bs4 import BeautifulSoup #type: ignore
 from dotenv import load_dotenv #type: ignore
@@ -11,6 +12,10 @@ email_address = os.getenv("EMAIL_ADDRESS")
 email_password = os.getenv("EMAIL_PASSWORD")
 email_from_1 = os.getenv("EMAIL_FROM_1")
 email_from_2 = os.getenv("EMAIL_FROM_2")
+recipient_1 = os.getenv("RECIPIENT_1")
+recipient_2 = os.getenv("RECIPIENT_2")
+
+recipients = [recipient_1, recipient_2]
 
 mail.login(email_address, email_password)
 
@@ -21,6 +26,9 @@ try:
 
     email_ids = result[0].split()
     for i in range(len(email_ids)):
+        full_address = None
+        order = []
+        tracking = []
         status, msg_data = mail.fetch(email_ids[i], '(RFC822)')
         
         raw_email = email.message_from_bytes(msg_data[0][1])
@@ -34,6 +42,13 @@ try:
             if content_type == 'text/html':
                 pl = part.get_payload(decode=True)
                 soup = BeautifulSoup(pl, 'html.parser')
+
+                for a in soup.find_all('a'):
+                    a_text = a.get_text()
+                    a_pattern = re.compile(r'\btrack (order|delivery)\b', re.IGNORECASE)
+                    found_a = re.findall(pattern=a_pattern, string=a_text) 
+                    if found_a:
+                        href  = a.get('href')
                 
                 # Ebay order number scrape 
                 for s in soup.find_all('span'):
@@ -91,25 +106,69 @@ try:
                         full_address = shipping_p.get_text(separator='\t').strip()
 
 
+        if len(tracking) <= 0:
+            msg = EmailMessage()
+            msg['Subject'] = 'Missing tracking number'
+            msg['From'] = email_address
+            msg['To'] = ', '.join(recipients)
+            msg.set_content(f'No tracking number found in email {i} \nwhere customer shipping address is: {full_address} \nand order number is: {order} \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
+            msg.add_alternative(f'''
+                                <html>
+                                    <p>No tracking number found in email {i}<br />
+                                        where customer shipping address is: {full_address}<br />
+                                        and the order number is {order}<br /><br /><br />
+                                        P.S. There might be more issues with this email</p>
+                                    <a href="{href}">Track Order</a>''', subtype='html')
 
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                smtp.login(email_address, email_password)
+                smtp.send_message(msg=msg)
+        elif len(order) <= 0:
+            msg = EmailMessage()
+            msg['Subject'] = 'Missing order number'
+            msg['From'] = email_address
+            msg['To'] = ', '.join(recipients)
+            msg.set_content(f'No order number found in email {i} \nwhere customer shipping address is: {full_address} \nand tracking number is: {tracking} \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
+            msg.add_alternative(f'''
+                                <html>
+                                    <p>No order number found in email {i}<br />
+                                        where customer shipping address is: {full_address}<br />
+                                        and tracking number is {tracking}<br /><br /><br />
+                                        P.S. There might be more issues with this email</p>
+                                    <a href="{href}">Track Order</a>''', subtype='html')
 
-        # with open('C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\118545073774020185.txt', 'r') as file:
-        #     reader = csv.reader(file, delimiter='\t')
-        #     rows = list(reader)
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                smtp.login(email_address, email_password)
+                smtp.send_message(msg=msg)
 
-        #     for row in rows:
-        #         print(row)
-        #         if 'Roger Kienast' in row:
-        #             print('found')
+        elif full_address == None or full_address == '':
+            msg = EmailMessage()
+            msg['Subject'] = 'Couldn''t find shipping address'
+            msg['From'] = email_address
+            msg['To'] = ', '.join(recipients)
+            msg.set_content(f'No shipping address found in email {i} \nwhere order number is: {order} \nand tracking number is: {tracking}  \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
+            msg.add_alternative(f'''
+                                <html>
+                                    <p>No shipping address found in email {i}<br />
+                                        where order number is: {order}<br />
+                                        and tracking number is {tracking}<br /><br /><br />
+                                        P.S. There might be more issues with this email</p>
+                                    <a href="{href}">Track Order</a>''', subtype='html')
 
-
-        print(i)
-        print(f'tracking #: {tracking}')
-        print(f'order #: {order}')
-        print(f'Shipping Address: \n{full_address}')
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                smtp.login(email_address, email_password)
+                smtp.send_message(msg=msg)
+        else:
+            print(i)
+            print(f'tracking #: {tracking}')
+            print(f'order #: {order}')
+            print(f'Shipping Address: \n{full_address}')
 
 
         
-        print('----------END---------')
+        print(f'----------END email #{i}---------')
+    mail.close()
+    mail.logout()
+    print("logged out succefully")
 except imaplib.IMAP4_SSL.error as e:
     print(f'error: {e}')
