@@ -84,11 +84,11 @@ try:
                                 address_lines.append(text)
 
                     address_lines = [item for item in address_lines if item != '']
-                    full_address = "\n".join(address_lines)
+                    full_address = "\t".join(address_lines)
                 elif e_shipping_h3:
                     shipping_p = e_shipping_h3.find_next_sibling('p')
                     if shipping_p:
-                        full_address = shipping_p.get_text(separator='\n').strip()
+                        full_address = shipping_p.get_text(separator='\t').strip()
 
 
 
