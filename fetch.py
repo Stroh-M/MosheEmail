@@ -23,6 +23,14 @@ smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
 mail.login(email_address, email_password)
 smtp.login(email_address, email_password)
 
+def get_carrier(tracking_number):
+    if tracking_number.startswith('1Z'):
+        return 'UPS'
+    elif len(tracking_number) in (15, 12):
+        return 'FedEx'
+    elif tracking_number.startswith('92'):
+        return 'USPS'
+
 try:
     print('Login Successful')
     mail.select('INBOX')
@@ -177,7 +185,7 @@ try:
                             a_order_id = row[0]
 
                             data = []
-                            carrier = 'UPS'
+                            carrier = get_carrier(tracking_number=tracking[0])
                             
                             data.append([order[0], tracking[0], a_order_id, carrier])
 
