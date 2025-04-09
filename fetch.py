@@ -199,6 +199,7 @@ try:
 
                             wb.save(excel_file_path)
 
+        # mail.store(email_ids[i], '+X-GM-LABELS', '\\INBOX')
 
         
         print(f'----------END email #{i}---------')
