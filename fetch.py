@@ -1,4 +1,4 @@
-import imaplib, email, os, re, csv, smtplib, pytz #type: ignore
+import imaplib, email, os, re, csv, smtplib, pytz, zipfile #type: ignore
 from datetime import datetime
 from openpyxl import load_workbook #type: ignore
 from email.message import EmailMessage
@@ -36,6 +36,15 @@ def get_carrier(tracking_number):
         return 'FedEx'
     elif tracking_number.startswith('92'):
         return 'USPS'
+    
+def scrape_tracking_link(soup):
+    for a in soup.find_all('a'):
+        a_text = a.get_text()
+        a_pattern = re.compile(r'\btrack (order|delivery)\b', re.IGNORECASE)
+        found_a = re.findall(pattern=a_pattern, string=a_text) 
+        if found_a:
+            href  = a.get('href')
+            return href
 
 try:
     print('Login Successful')
@@ -63,14 +72,10 @@ try:
             if content_type == 'text/html':
                 pl = part.get_payload(decode=True)
                 soup = BeautifulSoup(pl, 'html.parser')
-
-                for a in soup.find_all('a'):
-                    a_text = a.get_text()
-                    a_pattern = re.compile(r'\btrack (order|delivery)\b', re.IGNORECASE)
-                    found_a = re.findall(pattern=a_pattern, string=a_text) 
-                    if found_a:
-                        href  = a.get('href')
                 
+                # Get tracking link from email
+                href = scrape_tracking_link(soup=soup)
+
                 # Ebay order number scrape 
                 for s in soup.find_all('span'):
                     sp_text = s.get_text()
@@ -185,57 +190,79 @@ try:
             print(name)
             print(zip)
             found_match = False
-            with open(tsv_file_path, 'r') as file:
-                reader = csv.reader(file, delimiter='\t')
-                for row_n, row in enumerate(list(reader)):
-                    if len(row) > 0:
-                        if name in row[17] and zip in row[23]:
-                            
-                            found_match = True
-                            a_order_id = row[0]
+            try:
+                with open(tsv_file_path, 'r') as file:
+                    reader = csv.reader(file, delimiter='\t')
+                    for row_n, row in enumerate(list(reader)):
+                        if len(row) > 0:
+                            if name in row[17] and zip in row[23]:
+                                
+                                found_match = True
+                                a_order_id = row[0]
 
-                            data = []
-                            carrier = get_carrier(tracking_number=tracking[0])
-                            ship_date = datetime.now().date()
-                            
-                            data.append([ship_date, tracking[0], a_order_id, carrier])
+                                data = []
+                                carrier = get_carrier(tracking_number=tracking[0])
+                                ship_date = datetime.now().date()
+                                
+                                data.append([ship_date, tracking[0], a_order_id, carrier])
 
-                            wb = load_workbook(excel_file_path)
-                            sheet = wb[sheet_name]
+                                try:
+                                    wb = load_workbook(excel_file_path)
+                                    sheet = wb[sheet_name]
 
-                            max_row = sheet.max_row
+                                    max_row = sheet.max_row
 
-                            for row_num, data_to_append in enumerate(data, start=max_row + 1):
-                                sheet.cell(row=row_num, column=1, value=data_to_append[2])
-                                sheet.cell(row=row_num, column=7, value=data_to_append[1])
-                                sheet.cell(row=row_num, column=5, value=data_to_append[3])
-                                sheet.cell(row=row_num, column=4, value=data_to_append[0])
+                                    for row_num, data_to_append in enumerate(data, start=max_row + 1):
+                                        sheet.cell(row=row_num, column=1, value=data_to_append[2])
+                                        sheet.cell(row=row_num, column=7, value=data_to_append[1])
+                                        sheet.cell(row=row_num, column=5, value=data_to_append[3])
+                                        sheet.cell(row=row_num, column=4, value=data_to_append[0])
 
-                            wb.save(excel_file_path)
+                                    wb.save(excel_file_path)
 
-                            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
-                            break
+                                    mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+                                    break
+                                except FileNotFoundError:
+                                    print(f'Error: No file found at: {excel_file_path}')
+                                except PermissionError:
+                                    print(f'Error: Permission denied most probably cause file open in another program, close file, and try again')
+                                except zipfile.BadZipFile:
+                                    print(f'BadZipFile caught file at {excel_file_path} is not a valid .xlsx (Excel) file')
+            except FileNotFoundError:
+                print(f'Error: No file found at: {tsv_file_path}')
+            except PermissionError:
+                print(f'Error: Permission denied to open file at: {tsv_file_path}')
+            except OSError as e:
+                print(f'An unexpected error occured: {e}')
+                
             if not found_match:
                 error_message = 'Did not find match in tsv file'
-                error_wb = load_workbook(error_excel_path)
-                error_sheet = error_wb['Sheet1']
-                error_max_row = error_sheet.max_row
+                try:
+                    error_wb = load_workbook(error_excel_path)
+                    error_sheet = error_wb['Sheet1']
+                    error_max_row = error_sheet.max_row
 
-                error_data = []
+                    error_data = []
 
-                error_data.append([error_message, order[0], tracking[0], full_address, name, zip, email_date, datetime.now()])
+                    error_data.append([error_message, order[0], tracking[0], full_address, name, zip, email_date, datetime.now()])
 
-                for error_row_num, error_row_data in enumerate(error_data, start=error_max_row+1):
-                    error_sheet.cell(row=error_row_num, column=1, value=error_row_data[0])
-                    error_sheet.cell(row=error_row_num, column=2, value=error_row_data[1])
-                    error_sheet.cell(row=error_row_num, column=3, value=error_row_data[2])
-                    error_sheet.cell(row=error_row_num, column=4, value=error_row_data[3])
-                    error_sheet.cell(row=error_row_num, column=5, value=error_row_data[4])
-                    error_sheet.cell(row=error_row_num, column=6, value=error_row_data[5])
-                    error_sheet.cell(row=error_row_num, column=7, value=error_row_data[6])
-                    error_sheet.cell(row=error_row_num, column=8, value=error_row_data[7])
+                    for error_row_num, error_row_data in enumerate(error_data, start=error_max_row+1):
+                        error_sheet.cell(row=error_row_num, column=1, value=error_row_data[0])
+                        error_sheet.cell(row=error_row_num, column=2, value=error_row_data[1])
+                        error_sheet.cell(row=error_row_num, column=3, value=error_row_data[2])
+                        error_sheet.cell(row=error_row_num, column=4, value=error_row_data[3])
+                        error_sheet.cell(row=error_row_num, column=5, value=error_row_data[4])
+                        error_sheet.cell(row=error_row_num, column=6, value=error_row_data[5])
+                        error_sheet.cell(row=error_row_num, column=7, value=error_row_data[6])
+                        error_sheet.cell(row=error_row_num, column=8, value=error_row_data[7])
 
-                error_wb.save(error_excel_path)
+                    error_wb.save(error_excel_path)
+                except FileNotFoundError:
+                    print(f'Error: No file found at: {error_excel_path}')
+                except PermissionError:
+                    print(f'Error: Permission denied most probably cause file open in another program, close file, and try again')
+                except zipfile.BadZipFile:
+                    print(f'BadZipFile caught file at {error_excel_path} is not a valid .xlsx (Excel) file')
                 
         
         print(f'----------Processed email #{i}---------')
