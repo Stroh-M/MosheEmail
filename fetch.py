@@ -13,9 +13,10 @@ email_from_1 = os.getenv("EMAIL_FROM_1")
 email_from_2 = os.getenv("EMAIL_FROM_2")
 recipient_1 = os.getenv("RECIPIENT_1")
 recipient_2 = os.getenv("RECIPIENT_2")
+excel_file_path = os.getenv("EXCEL_FILE_PATH")
+tsv_file_path = os.getenv("TSV_FILE_PATH")
 
 recipients = [recipient_1, recipient_2]
-excel_file_path = 'C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\Flat.File.ShippingConfirm (1).xlsx'
 
 mail = imaplib.IMAP4_SSL("imap.gmail.com")
 smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
@@ -173,7 +174,7 @@ try:
             zip = zip_code[-1]
             print(first_name)
             print(zip)
-            with open('C:\\Users\\meir.stroh\\OneDrive\\MosheEmail\\118763359755020187.txt', 'r') as file:
+            with open(tsv_file_path, 'r') as file:
                 reader = csv.reader(file, delimiter='\t')
                 for row_n, row in enumerate(list(reader)):
                     if len(row) > 0:
@@ -199,7 +200,7 @@ try:
 
                             wb.save(excel_file_path)
 
-        # mail.store(email_ids[i], '+X-GM-LABELS', '\\INBOX')
+                            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
 
         
         print(f'----------END email #{i}---------')
