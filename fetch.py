@@ -1,4 +1,5 @@
 import imaplib, email, os, re, csv, smtplib
+from datetime import datetime
 from openpyxl import load_workbook #type: ignore
 from email.message import EmailMessage
 from email.header import decode_header
@@ -15,6 +16,7 @@ recipient_1 = os.getenv("RECIPIENT_1")
 recipient_2 = os.getenv("RECIPIENT_2")
 excel_file_path = os.getenv("EXCEL_FILE_PATH")
 tsv_file_path = os.getenv("TSV_FILE_PATH")
+sheet_name = os.getenv("SHEET_NAME")
 
 recipients = [recipient_1, recipient_2]
 
@@ -183,12 +185,13 @@ try:
 
                             data = []
                             carrier = get_carrier(tracking_number=tracking[0])
+                            ship_date = datetime.now().date()
                             
-                            data.append([order[0], tracking[0], a_order_id, carrier])
+                            data.append([ship_date, tracking[0], a_order_id, carrier])
 
                             
                             wb = load_workbook(excel_file_path)
-                            sheet = wb['ShippingConfirmation']
+                            sheet = wb[sheet_name]
 
                             max_row = sheet.max_row
 
@@ -196,7 +199,7 @@ try:
                                 sheet.cell(row=row_num, column=1, value=data_to_append[2])
                                 sheet.cell(row=row_num, column=7, value=data_to_append[1])
                                 sheet.cell(row=row_num, column=5, value=data_to_append[3])
-                                sheet.cell(row=row_num, column=2, value=data_to_append[0])
+                                sheet.cell(row=row_num, column=4, value=data_to_append[0])
 
                             wb.save(excel_file_path)
 
