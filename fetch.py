@@ -1,10 +1,11 @@
-import imaplib, email, os, re, csv, smtplib
+import imaplib, email, os, re, csv, smtplib, pytz #type: ignore
 from datetime import datetime
 from openpyxl import load_workbook #type: ignore
 from email.message import EmailMessage
 from email.header import decode_header
 from bs4 import BeautifulSoup #type: ignore
 from dotenv import load_dotenv #type: ignore
+from email import utils
 
 load_dotenv(override=True)
 
@@ -17,6 +18,7 @@ recipient_2 = os.getenv("RECIPIENT_2")
 excel_file_path = os.getenv("EXCEL_FILE_PATH")
 tsv_file_path = os.getenv("TSV_FILE_PATH")
 sheet_name = os.getenv("SHEET_NAME")
+error_excel_path = os.getenv("ERROR_EXCEL_PATH")
 
 recipients = [recipient_1, recipient_2]
 
@@ -25,6 +27,7 @@ smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
 
 mail.login(email_address, email_password)
 smtp.login(email_address, email_password)
+local_tz = pytz.timezone('America/New_York')
 
 def get_carrier(tracking_number):
     if tracking_number.startswith('1Z'):
@@ -49,8 +52,11 @@ try:
         raw_email = email.message_from_bytes(msg_data[0][1])
 
         subject, encoding = decode_header(raw_email['Subject'])[0]
+        date_string = raw_email.get('Date')
+
+        email_date = utils.parsedate_to_datetime(date_string).astimezone(local_tz).replace(tzinfo=None)
             
-        
+        print(email_date)
         for part in raw_email.walk():
             content_type = part.get_content_type()
         
@@ -136,6 +142,7 @@ try:
                                     <a href="{href}">Track Order</a>''', subtype='html')
 
             smtp.send_message(msg=msg)
+            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
         elif len(order) <= 0:
             msg = EmailMessage()
             msg['Subject'] = 'Missing order number'
@@ -151,7 +158,7 @@ try:
                                     <a href="{href}">Track Order</a>''', subtype='html')
 
             smtp.send_message(msg=msg)
-
+            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
         elif full_address == None or full_address == '':
             msg = EmailMessage()
             msg['Subject'] = 'Couldn''t find shipping address'
@@ -162,25 +169,29 @@ try:
                                 <html>
                                     <p>No shipping address found in email {i}<br />
                                         where order number is: {order}<br />
-                                        and tracking number is {tracking}<br /><br /><br />
+                                        and tracking number is {tracking}
+                                        as a result can not find the amazon order number<br /><br /><br />
                                         P.S. There might be more issues with this email</p>
                                     <a href="{href}">Track Order</a>''', subtype='html')
-
-            
             smtp.send_message(msg=msg)
+            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
         else:
             zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
             zip_code = re.findall(pattern=zip_code_pattern, string=full_address)
             address = re.split(r'\t+', full_address)
-            first_name = address[0]
+            name = re.sub(r'\s+', ' ', address[0]).strip()
+
             zip = zip_code[-1]
-            print(first_name)
+            print(name)
             print(zip)
+            found_match = False
             with open(tsv_file_path, 'r') as file:
                 reader = csv.reader(file, delimiter='\t')
                 for row_n, row in enumerate(list(reader)):
                     if len(row) > 0:
-                        if re.sub(r'\s+', ' ', first_name).strip() in row[17] and zip in row[23]:
+                        if name in row[17] and zip in row[23]:
+                            
+                            found_match = True
                             a_order_id = row[0]
 
                             data = []
@@ -189,7 +200,6 @@ try:
                             
                             data.append([ship_date, tracking[0], a_order_id, carrier])
 
-                            
                             wb = load_workbook(excel_file_path)
                             sheet = wb[sheet_name]
 
@@ -204,9 +214,31 @@ try:
                             wb.save(excel_file_path)
 
                             mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+                            break
+            if not found_match:
+                error_message = 'Did not find match in tsv file'
+                error_wb = load_workbook(error_excel_path)
+                error_sheet = error_wb['Sheet1']
+                error_max_row = error_sheet.max_row
 
+                error_data = []
+
+                error_data.append([error_message, order[0], tracking[0], full_address, name, zip, email_date, datetime.now()])
+
+                for error_row_num, error_row_data in enumerate(error_data, start=error_max_row+1):
+                    error_sheet.cell(row=error_row_num, column=1, value=error_row_data[0])
+                    error_sheet.cell(row=error_row_num, column=2, value=error_row_data[1])
+                    error_sheet.cell(row=error_row_num, column=3, value=error_row_data[2])
+                    error_sheet.cell(row=error_row_num, column=4, value=error_row_data[3])
+                    error_sheet.cell(row=error_row_num, column=5, value=error_row_data[4])
+                    error_sheet.cell(row=error_row_num, column=6, value=error_row_data[5])
+                    error_sheet.cell(row=error_row_num, column=7, value=error_row_data[6])
+                    error_sheet.cell(row=error_row_num, column=8, value=error_row_data[7])
+
+                error_wb.save(error_excel_path)
+                
         
-        print(f'----------END email #{i}---------')
+        print(f'----------Processed email #{i}---------')
     mail.close()
     mail.logout()
     print("logged out succefully")
