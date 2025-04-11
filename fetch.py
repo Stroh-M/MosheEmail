@@ -1,4 +1,5 @@
 import imaplib, email, os, re, csv, smtplib, pytz, zipfile #type: ignore
+import pandas as pd #type: ignore
 from datetime import datetime
 from openpyxl import load_workbook #type: ignore
 from email.message import EmailMessage
@@ -19,6 +20,7 @@ excel_file_path = os.getenv("EXCEL_FILE_PATH")
 tsv_file_path = os.getenv("TSV_FILE_PATH")
 sheet_name = os.getenv("SHEET_NAME")
 error_excel_path = os.getenv("ERROR_EXCEL_PATH")
+shipping_txt_file = os.getenv("SHIPPING_TXT_FILE")
 
 recipients = [recipient_1, recipient_2]
 
@@ -219,7 +221,7 @@ try:
                                         sheet.cell(row=row_num, column=4, value=data_to_append[0])
 
                                     wb.save(excel_file_path)
-
+                                    
                                     mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
                                     break
                                 except FileNotFoundError:
@@ -269,5 +271,13 @@ try:
     mail.close()
     mail.logout()
     print("logged out succefully")
+    try:
+        ef = pd.read_excel(excel_file_path, engine='openpyxl', sheet_name=sheet_name)
+        ef.to_csv(shipping_txt_file, sep='\t', index=False)
+    except FileNotFoundError:
+        print(f'Error: No file found at {shipping_txt_file}')
+    except:
+        print(f'There was an error converitng excel file to txt tab delimited file')
+        
 except imaplib.IMAP4_SSL.error as e:
     print(f'error: {e}')
