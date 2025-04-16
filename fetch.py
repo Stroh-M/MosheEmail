@@ -67,7 +67,7 @@ try:
 
         email_date = utils.parsedate_to_datetime(date_string).astimezone(local_tz).replace(tzinfo=None)
             
-        print(email_date)
+        
         for part in raw_email.walk():
             content_type = part.get_content_type()
         
