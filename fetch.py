@@ -21,6 +21,7 @@ tsv_file_path = os.getenv("TSV_FILE_PATH")
 sheet_name = os.getenv("SHEET_NAME")
 error_excel_path = os.getenv("ERROR_EXCEL_PATH")
 shipping_txt_file = os.getenv("SHIPPING_TXT_FILE")
+walmart_order_excel_file = os.getenv("WALMART_ORDER_EXCEL_FILE")
 
 recipients = [recipient_1, recipient_2]
 
@@ -186,6 +187,7 @@ try:
             zip = zip_code[-1]
             print(name)
             print(zip)
+            found_match_amazon = False
             found_match = False
             try:
                 with open(tsv_file_path, 'r') as file:
@@ -194,7 +196,7 @@ try:
                         if len(row) > 0:
                             if name in row[17] and zip in row[23]:
                                 
-                                found_match = True
+                                found_match_amazon = True
                                 a_order_id = row[0]
 
                                 data = []
@@ -231,7 +233,12 @@ try:
                 print(f'Error: Permission denied to open file at: {tsv_file_path}')
             except OSError as e:
                 print(f'An unexpected error occured: {e}')
-                
+            if not found_match_amazon:
+                try:
+                    wm_wb = load_workbook(walmart_order_excel_file)
+                    wm_ws = wm_wb['Po Details']
+                except:
+                    pass
             if not found_match:
                 error_message = 'Did not find match in tsv file'
                 try:
