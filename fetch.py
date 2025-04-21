@@ -47,7 +47,14 @@ def scrape_tracking_link(soup):
         if found_a:
             href  = a.get('href')
             return href
-
+        
+def scrape_pattern_in_email(html_soup, element, pattern):
+    for e in html_soup.find_all(element):
+        e_text = e.get_text()
+        found_e = re.findall(pattern=pattern, string=e_text)
+        if len(found_e) > 0:
+            return found_e
+        
 try:
     print('Login Successful')
     mail.select('INBOX')
@@ -77,36 +84,24 @@ try:
                 
                 # Get tracking link from email
                 href = scrape_tracking_link(soup=soup)
-
-                # Ebay order number scrape 
-                for s in soup.find_all('span'):
-                    sp_text = s.get_text()
-                    e_order_pattern = re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$')
-                    order = re.findall(pattern=e_order_pattern, string=sp_text)
-                    if len(order) > 0:
-                        break
-                    
-                # If no ebay order number look for keurig order number
-                # Keurig tracking and order number scrape
-                if len(order) <= 0:
-                    for x in soup.find_all('td'):
-                        td_text = x.get_text()
-                        tracking_pattern = re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE)
-                        order_pattern = re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE)
-                        tracking = re.findall(pattern=tracking_pattern, string=td_text)
-                        order = re.findall(pattern=order_pattern, string=td_text)
-                        if len(tracking) > 0 and len(order) > 0:
-                            break
                 
-                # Ebay tracking number scrape
-                for y in soup.find_all('p'):
-                    p_text = y.get_text().lstrip()
-                    e_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
-                    tracking = re.findall(pattern=e_tracking_pattern, string=p_text)
-                    if len(tracking) > 0:
-                        break  
+                # Get tracking number for eBay 
+                tracking = scrape_pattern_in_email(soup, 'p', re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE))
+                # Get order number for eBay 
+                order = scrape_pattern_in_email(soup, 'span', re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$'))
+
+                # If no eBay tracking number 
+                if tracking is None:
+                    # Get Keurig tracking number 
+                    tracking = scrape_pattern_in_email(soup, 'td', re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE))
+                    if tracking is None:
+                        pass
+                
+                # If no eBay order number 
+                if order is None:
+                    # Get Keurig order number 
+                    order = scrape_pattern_in_email(soup, 'td', re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE))
             
-        
                 # ebay and keurig shipping address scraping 
                 shipping_td = soup.find('td', string=lambda t: t and 'Shipping Address' in t)
                 e_shipping_h3 = soup.find('h3', string=lambda text: text and 'Your order will ' in text)  
@@ -134,7 +129,7 @@ try:
                         full_address = shipping_p.get_text(separator='\t').strip()
 
 
-        if len(tracking) <= 0:
+        if tracking is None:
             msg = EmailMessage()
             msg['Subject'] = 'Missing tracking number'
             msg['From'] = email_address
@@ -150,7 +145,7 @@ try:
 
             smtp.send_message(msg=msg)
             mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
-        elif len(order) <= 0:
+        elif order is None:
             msg = EmailMessage()
             msg['Subject'] = 'Missing order number'
             msg['From'] = email_address
@@ -266,7 +261,6 @@ try:
                 except zipfile.BadZipFile:
                     print(f'BadZipFile caught file at {error_excel_path} is not a valid .xlsx (Excel) file')
                 
-        
         print(f'----------Processed email #{i}---------')
     mail.close()
     mail.logout()
