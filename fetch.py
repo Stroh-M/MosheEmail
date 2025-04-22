@@ -182,10 +182,13 @@ try:
             zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
             zip_code = re.findall(pattern=zip_code_pattern, string=full_address)
             address = re.split(r'\t+', full_address)
-            name = re.sub(r'\s+', ' ', address[0]).strip()
+            name_wm = address[0].strip()
+            name_amazon = re.sub(r'\s+', ' ', address[0]).strip()
+            
 
             zip = zip_code[-1]
-            print(name)
+            print(name_amazon)
+            print(name_wm)
             print(zip)
             found_match_amazon = False
             found_match = False
@@ -194,7 +197,7 @@ try:
                     reader = csv.reader(file, delimiter='\t')
                     for row_n, row in enumerate(list(reader)):
                         if len(row) > 0:
-                            if name in row[17] and zip in row[23]:
+                            if name_amazon in row[17] and zip in row[23]:
                                 
                                 found_match_amazon = True
                                 a_order_id = row[0]
@@ -220,6 +223,7 @@ try:
                                     wb.save(excel_file_path)
                                     
                                     mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+                                    del data
                                     break
                                 except FileNotFoundError:
                                     print(f'Error: No file found at: {excel_file_path}')
@@ -237,10 +241,28 @@ try:
                 try:
                     wm_wb = load_workbook(walmart_order_excel_file)
                     wm_ws = wm_wb['Po Details']
-                except:
-                    pass
+
+                    carrier = get_carrier(tracking_number=tracking[0])
+
+                    for row_id, row in enumerate(wm_ws.iter_rows(values_only=True), start=1):
+                        if zip == row[13] and name_wm == row[5]:
+                           found_match = True
+                           print(row)
+                           wm_ws.cell(row=row_id, column=32, value=carrier)
+                           wm_ws.cell(row=row_id, column=33, value=tracking[0]) 
+                           mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+
+                    wm_wb.save(walmart_order_excel_file)
+
+                    
+                except FileNotFoundError:
+                    print(f'Error: No file found at: {excel_file_path}')
+                except PermissionError:
+                    print(f'Error: Permission denied most probably cause file open in another program, close file, and try again')
+                except zipfile.BadZipFile:
+                    print(f'BadZipFile caught file at {excel_file_path} is not a valid .xlsx (Excel) file')
             if not found_match:
-                error_message = 'Did not find match in tsv file'
+                error_message = 'Did not find match in walmart nor amazon'
                 try:
                     error_wb = load_workbook(error_excel_path)
                     error_sheet = error_wb['Sheet1']
@@ -248,7 +270,7 @@ try:
 
                     error_data = []
 
-                    error_data.append([error_message, order[0], tracking[0], full_address, name, zip, email_date, datetime.now()])
+                    error_data.append([error_message, order[0], tracking[0], full_address, name_amazon, zip, email_date, datetime.now()])
 
                     for error_row_num, error_row_data in enumerate(error_data, start=error_max_row+1):
                         error_sheet.cell(row=error_row_num, column=1, value=error_row_data[0])
@@ -271,6 +293,7 @@ try:
         print(f'----------Processed email #{i}---------')
     mail.close()
     mail.logout()
+
     print("logged out succefully")
     try:
         ef = pd.read_excel(excel_file_path, engine='openpyxl', sheet_name=sheet_name)
