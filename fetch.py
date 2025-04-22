@@ -182,13 +182,11 @@ try:
             zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
             zip_code = re.findall(pattern=zip_code_pattern, string=full_address)
             address = re.split(r'\t+', full_address)
-            name_wm = address[0].strip()
-            name_amazon = re.sub(r'\s+', ' ', address[0]).strip()
+            name = re.sub(r'\s+', ' ', address[0]).strip()
             
 
             zip = zip_code[-1]
-            print(name_amazon)
-            print(name_wm)
+            print(name)
             print(zip)
             found_match_amazon = False
             found_match = False
@@ -197,7 +195,7 @@ try:
                     reader = csv.reader(file, delimiter='\t')
                     for row_n, row in enumerate(list(reader)):
                         if len(row) > 0:
-                            if name_amazon in row[17] and zip in row[23]:
+                            if name in row[17] and zip in row[23]:
                                 
                                 found_match_amazon = True
                                 a_order_id = row[0]
@@ -243,9 +241,11 @@ try:
                     wm_ws = wm_wb['Po Details']
 
                     carrier = get_carrier(tracking_number=tracking[0])
+                    print(zip)
 
                     for row_id, row in enumerate(wm_ws.iter_rows(values_only=True), start=1):
-                        if zip == row[13] and name_wm == row[5]:
+                        cleaned_name = re.sub(r'\s+', ' ', row[5])
+                        if zip == row[13] and name == cleaned_name:
                            found_match = True
                            print(row)
                            wm_ws.cell(row=row_id, column=32, value=carrier)
@@ -270,7 +270,7 @@ try:
 
                     error_data = []
 
-                    error_data.append([error_message, order[0], tracking[0], full_address, name_amazon, zip, email_date, datetime.now()])
+                    error_data.append([error_message, order[0], tracking[0], full_address, name, zip, email_date, datetime.now()])
 
                     for error_row_num, error_row_data in enumerate(error_data, start=error_max_row+1):
                         error_sheet.cell(row=error_row_num, column=1, value=error_row_data[0])
