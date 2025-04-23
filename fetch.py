@@ -42,6 +42,8 @@ headers = {
     "Cache-Control": "max-age=0"
 }
 
+soup = None
+
 def get_carrier(tracking_number):
     if tracking_number.startswith('1Z'):
         return 'UPS'
