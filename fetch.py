@@ -230,7 +230,7 @@ try:
                     reader = csv.reader(file, delimiter='\t')
                     for row_n, row in enumerate(list(reader)):
                         if len(row) > 0:
-                            if name in row[17] and zip in row[23]:
+                            if name.lower() in row[17].lower() and zip in row[23]:
                                 
                                 found_match_amazon = True
                                 a_order_id = row[0]
