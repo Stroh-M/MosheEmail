@@ -1,4 +1,4 @@
-import imaplib, email, os, re, csv, smtplib, pytz, zipfile #type: ignore
+import imaplib, email, os, re, csv, smtplib, pytz, zipfile, requests #type: ignore
 import pandas as pd #type: ignore
 from datetime import datetime
 from openpyxl import load_workbook #type: ignore
@@ -31,6 +31,16 @@ smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
 mail.login(email_address, email_password)
 smtp.login(email_address, email_password)
 local_tz = pytz.timezone('America/New_York')
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.10 Safari/605.1.1",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Cache-Control": "max-age=0"
+}
 
 def get_carrier(tracking_number):
     if tracking_number.startswith('1Z'):
@@ -131,21 +141,48 @@ try:
 
 
         if tracking is None:
-            msg = EmailMessage()
-            msg['Subject'] = 'Missing tracking number'
-            msg['From'] = email_address
-            msg['To'] = ', '.join(recipients)
-            msg.set_content(f'No tracking number found in email {i} \nwhere customer shipping address is: {full_address} \nand order number is: {order} \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
-            msg.add_alternative(f'''
-                                <html>
-                                    <p>No tracking number found in email {i}<br />
-                                        where customer shipping address is: {full_address}<br />
-                                        and the order number is {order}<br /><br /><br />
-                                        P.S. There might be more issues with this email</p>
-                                    <a href="{href}">Track Order</a>''', subtype='html')
+            try:
+                tracking = []
+                url = scrape_tracking_link(soup=soup)
+                error = False
 
-            smtp.send_message(msg=msg)
-            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+                rspn = requests.get(url=url, headers=headers, allow_redirects=True)
+
+                if rspn.status_code != 200:
+                    error = True
+                    
+                ebay_soup = BeautifulSoup(rspn.text, 'html.parser')
+
+                found_ = ebay_soup.find('span', string=lambda t: t and 'Number' in t)
+
+                parent_dt = found_.find_parent()
+                parent_div = parent_dt.find_parent()
+
+                spans = parent_div.find_all('span')
+                tracking.append(spans[-1].get_text())
+
+                print(tracking)
+                mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+
+                if error or len(tracking[0]) <= 0:
+                    msg = EmailMessage()
+                    msg['Subject'] = 'Missing tracking number'
+                    msg['From'] = email_address
+                    msg['To'] = ', '.join(recipients)
+                    msg.set_content(f'No tracking number found in email {i} \nwhere customer shipping address is: {full_address} \nand order number is: {order} \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
+                    msg.add_alternative(f'''
+                                        <html>
+                                            <p>No tracking number found in email {i}<br />
+                                                where customer shipping address is: {full_address}<br />
+                                                and the order number is {order}<br /><br /><br />
+                                                P.S. There might be more issues with this email</p>
+                                            <a href="{href}">Track Order</a>''', subtype='html')
+
+                    smtp.send_message(msg=msg)
+                    mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+            except requests.exceptions.RequestException as e:
+                print(f"Request failed: {e}")
+                
         elif order is None:
             msg = EmailMessage()
             msg['Subject'] = 'Missing order number'
@@ -186,8 +223,6 @@ try:
             
 
             zip = zip_code[-1]
-            print(name)
-            print(zip)
             found_match_amazon = False
             found_match = False
             try:
@@ -241,7 +276,6 @@ try:
                     wm_ws = wm_wb['Po Details']
 
                     carrier = get_carrier(tracking_number=tracking[0])
-                    print(zip)
 
                     for row_id, row in enumerate(wm_ws.iter_rows(values_only=True), start=1):
                         cleaned_name = re.sub(r'\s+', ' ', row[5])
