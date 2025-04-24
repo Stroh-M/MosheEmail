@@ -1,7 +1,6 @@
-
 ## 🔧 Environment Setup
 
-Before running the script, make sure you create a `.env` file in the root directory of the project with the following environment variables:
+Before running the script, create a `.env` file in the root directory of the project with the following environment variables:
 
 ```env
 EMAIL_ADDRESS=your_email@gmail.com
@@ -17,9 +16,12 @@ TSV_FILE_PATH=/path/to/data.tsv
 EXCEL_FILE_PATH=/path/to/output.xlsx
 SHEET_NAME=YourSheetName
 ERROR_EXCEL_PATH=/path/to/error_log.xlsx
+
+SHIPPING_TXT_FILE=/path/to/shipping_output.txt
+WALMART_ORDER_EXCEL_FILE=/path/to/walmart_orders.xlsx
 ```
 
 ### 📌 Notes:
 - Use [Google App Passwords](https://support.google.com/accounts/answer/185833) if 2FA is enabled on your Gmail account.
-- Ensure file paths are absolute or correctly relative to your working directory.
-- Do **not** commit your `.env` file to source control.
+- All file paths should be absolute or correctly relative to the working directory.
+- Never commit your `.env` file to source control. Use `.gitignore` to exclude it.
