@@ -1,4 +1,4 @@
-import imaplib, email, os, re, csv, smtplib, pytz, zipfile, requests #type: ignore
+import imaplib, email, os, re, csv, smtplib, pytz, zipfile, requests, error #type: ignore
 import pandas as pd #type: ignore
 from datetime import datetime
 from openpyxl import load_workbook #type: ignore
@@ -68,6 +68,19 @@ def scrape_pattern_in_email(html_soup, element, pattern):
         if len(found_e) > 0:
             return found_e
         
+def mark_email_as_trash(mail, email_id):
+    mail.store(email_id, '+X-GM-LABELS', '\\Trash')
+
+def send_message(subject: str, email_msg, email_=email_address, recipients=recipients):
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = email_
+    msg['To'] = ', '.join(recipients)
+    msg.set_content(email_msg)
+    msg.add_alternative(email_msg, subtype='html')
+    smtp.send_message(msg=msg)
+
+    
 try:
     print('Login Successful')
     mail.select('INBOX')
@@ -75,98 +88,103 @@ try:
 
     email_ids = result[0].split()
     for i in range(len(email_ids)):
-        full_address = None
-        order = []
-        tracking = []
-        status, msg_data = mail.fetch(email_ids[i], '(RFC822)')
-        
-        raw_email = email.message_from_bytes(msg_data[0][1])
-
-        subject, encoding = decode_header(raw_email['Subject'])[0]
-        date_string = raw_email.get('Date')
-
-        email_date = utils.parsedate_to_datetime(date_string).astimezone(local_tz).replace(tzinfo=None)
+        try:
+            full_address = None
+            order = []
+            tracking = []
+            status, msg_data = mail.fetch(email_ids[i], '(RFC822)')
             
-        
-        for part in raw_email.walk():
-            content_type = part.get_content_type()
-        
-            if content_type == 'text/html':
-                pl = part.get_payload(decode=True)
-                soup = BeautifulSoup(pl, 'html.parser')
-                
-                # Get tracking link from email
-                href = scrape_tracking_link(soup=soup)
-                
-                # Get tracking number for eBay 
-                tracking = scrape_pattern_in_email(soup, 'p', re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE))
-                # Get order number for eBay 
-                order = scrape_pattern_in_email(soup, 'span', re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$'))
+            raw_email = email.message_from_bytes(msg_data[0][1])
 
-                # If no eBay tracking number 
-                if tracking is None:
-                    # Get Keurig tracking number 
-                    tracking = scrape_pattern_in_email(soup, 'td', re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE))
-                    if tracking is None:
-                        pass
+            subject_, encoding = decode_header(raw_email['Subject'])[0]
+            date_string = raw_email.get('Date')
+
+            email_date = utils.parsedate_to_datetime(date_string).astimezone(local_tz).replace(tzinfo=None)
                 
-                # If no eBay order number 
-                if order is None:
-                    # Get Keurig order number 
-                    order = scrape_pattern_in_email(soup, 'td', re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE))
             
-                # ebay and keurig shipping address scraping 
-                shipping_td = soup.find('td', string=lambda t: t and 'Shipping Address' in t)
-                e_shipping_h3 = soup.find('h3', string=lambda text: text and 'Your order will ' in text)  
-                # Keurig shipping address scrape
-                if shipping_td:
-                    parent_tr = shipping_td.find_parent('tr')
-                    address_table = parent_tr.find_parent('table')
-                    all_rows = address_table.find_all('tr')
-                    start_index = all_rows.index(parent_tr) + 1
-                    address_lines = []
-
-                    for row in all_rows[start_index:]:
-                        tds = row.find_all('td')
-                        for td in tds:
-                            text = td.get_text()
-                            text = text.lstrip()
-                            if text not in address_lines:
-                                address_lines.append(text)
-
-                    address_lines = [item for item in address_lines if item != '']
-                    full_address = "\t".join(address_lines)
-                elif e_shipping_h3:
-                    shipping_p = e_shipping_h3.find_next_sibling('p')
-                    if shipping_p:
-                        full_address = shipping_p.get_text(separator='\t').strip()
-
-
-        if tracking is None:
-            try:
-                tracking = []
-                url = scrape_tracking_link(soup=soup)
-                error = False
-
-                rspn = requests.get(url=url, headers=headers, allow_redirects=True)
-
-                if rspn.status_code != 200:
-                    error = True
+            for part in raw_email.walk():
+                content_type = part.get_content_type()
+            
+                if content_type == 'text/html':
+                    pl = part.get_payload(decode=True)
+                    soup = BeautifulSoup(pl, 'html.parser')
                     
-                ebay_soup = BeautifulSoup(rspn.text, 'html.parser')
+                    # Get tracking link from email
+                    href = scrape_tracking_link(soup=soup)
+                    
+                    # Get tracking number for eBay 
+                    tracking = scrape_pattern_in_email(soup, 'p', re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE))
+                    # Get order number for eBay 
+                    order = scrape_pattern_in_email(soup, 'span', re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$'))
 
-                found_ = ebay_soup.find('span', string=lambda t: t and 'Number' in t)
+                    # If no eBay tracking number 
+                    if tracking is None:
+                        # Get Keurig tracking number 
+                        tracking = scrape_pattern_in_email(soup, 'td', re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE))
+                        if tracking is None:
+                            pass
+                    
+                    # If no eBay order number 
+                    if order is None:
+                        # Get Keurig order number 
+                        order = scrape_pattern_in_email(soup, 'td', re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE))
+                
+                    # ebay and keurig shipping address scraping 
+                    shipping_td = soup.find('td', string=lambda t: t and 'Shipping Address' in t)
+                    e_shipping_h3 = soup.find('h3', string=lambda text: text and 'Your order will ' in text)  
+                    # Keurig shipping address scrape
+                    if shipping_td:
+                        parent_tr = shipping_td.find_parent('tr')
+                        address_table = parent_tr.find_parent('table')
+                        all_rows = address_table.find_all('tr')
+                        start_index = all_rows.index(parent_tr) + 1
+                        address_lines = []
 
-                parent_dt = found_.find_parent()
-                parent_div = parent_dt.find_parent()
+                        for row in all_rows[start_index:]:
+                            tds = row.find_all('td')
+                            for td in tds:
+                                text = td.get_text()
+                                text = text.lstrip()
+                                if text not in address_lines:
+                                    address_lines.append(text)
 
-                spans = parent_div.find_all('span')
-                tracking.append(spans[-1].get_text())
+                        address_lines = [item for item in address_lines if item != '']
+                        full_address = "\t".join(address_lines)
+                    elif e_shipping_h3:
+                        shipping_p = e_shipping_h3.find_next_sibling('p')
+                        if shipping_p:
+                            full_address = shipping_p.get_text(separator='\t').strip()
 
-                print(tracking)
-                mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+                    order = None
 
-                if error or len(tracking[0]) <= 0:
+            if tracking is None and soup is not None:
+                try:
+                    tracking = []
+                    url = scrape_tracking_link(soup=soup)
+
+                    rspn = requests.get(url=url, headers=headers, allow_redirects=True)
+
+                    if rspn.status_code != 200:
+                        raise requests.exceptions.RequestException(f'Server returned {rspn.status_code}')
+                        
+                    ebay_soup = BeautifulSoup(rspn.text, 'html.parser')
+
+                    found_ = ebay_soup.find('span', string=lambda t: t and 'Number' in t)
+
+                    parent_dt = found_.find_parent()
+                    parent_div = parent_dt.find_parent()
+
+                    spans = parent_div.find_all('span')
+                    tracking.append(spans[-1].get_text())
+
+                    print(tracking)
+                    mark_email_as_trash(mail=mail, email_id=email_ids[i])
+
+                    if len(tracking[0]) < 10:
+                        raise requests.exceptions.RequestException("Could not find tracking number")
+                        
+                except requests.exceptions.RequestException as e:
+                    print(f"Request failed: {e}")
                     msg = EmailMessage()
                     msg['Subject'] = 'Missing tracking number'
                     msg['From'] = email_address
@@ -174,55 +192,55 @@ try:
                     msg.set_content(f'No tracking number found in email {i} \nwhere customer shipping address is: {full_address} \nand order number is: {order} \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
                     msg.add_alternative(f'''
                                         <html>
-                                            <p>No tracking number found in email {i}<br />
-                                                where customer shipping address is: {full_address}<br />
-                                                and the order number is {order}<br /><br /><br />
-                                                P.S. There might be more issues with this email</p>
-                                            <a href="{href}">Track Order</a>''', subtype='html')
+                                            <p>No tracking number found in email {i}<br /> 
+                                            where customer shipping address is: {full_address}<br />
+                                                    and the order number is {order}<br /><br /><br />
+                                                    P.S. There might be more issues with this email</p>
+                                                <a href="{href}">Track Order</a>''', subtype='html')
 
                     smtp.send_message(msg=msg)
-                    mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
-            except requests.exceptions.RequestException as e:
-                print(f"Request failed: {e}")
-                
-        elif order is None:
-            msg = EmailMessage()
-            msg['Subject'] = 'Missing order number'
-            msg['From'] = email_address
-            msg['To'] = ', '.join(recipients)
-            msg.set_content(f'No order number found in email {i} \nwhere customer shipping address is: {full_address} \nand tracking number is: {tracking} \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
-            msg.add_alternative(f'''
-                                <html>
-                                    <p>No order number found in email {i}<br />
-                                        where customer shipping address is: {full_address}<br />
-                                        and tracking number is {tracking}<br /><br /><br />
-                                        P.S. There might be more issues with this email</p>
-                                    <a href="{href}">Track Order</a>''', subtype='html')
+                    mark_email_as_trash(mail=mail, email_id=email_ids[i])
+            elif order is None:
+                raise error.No_Order_Number(f'<html><p>No order number found in email {i}<br />where customer shipping address is: {full_address}<br />and tracking number is {tracking}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{href}">Track Order</a></html>')
+            
+                # msg = EmailMessage()
+                # msg['Subject'] = 'Missing order number'
+                # msg['From'] = email_address
+                # msg['To'] = ', '.join(recipients)
+                # msg.set_content(f'No order number found in email {i} \nwhere customer shipping address is: {full_address} \nand tracking number is: {tracking} \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
+                # msg.add_alternative(f'''
+                #                     <html>
+                #                         <p>No order number found in email {i}<br />
+                #                             where customer shipping address is: {full_address}<br />
+                #                             and tracking number is {tracking}<br /><br /><br />
+                #                             P.S. There might be more issues with this email</p>
+                #                         <a href="{href}">Track Order</a></html>''', subtype='html')
 
-            smtp.send_message(msg=msg)
-            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
-        elif full_address == None or full_address == '':
-            msg = EmailMessage()
-            msg['Subject'] = 'Couldn''t find shipping address'
-            msg['From'] = email_address
-            msg['To'] = ', '.join(recipients)
-            msg.set_content(f'No shipping address found in email {i} \nwhere order number is: {order} \nand tracking number is: {tracking}  \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
-            msg.add_alternative(f'''
-                                <html>
-                                    <p>No shipping address found in email {i}<br />
-                                        where order number is: {order}<br />
-                                        and tracking number is {tracking}
-                                        as a result can not find the amazon order number<br /><br /><br />
-                                        P.S. There might be more issues with this email</p>
-                                    <a href="{href}">Track Order</a>''', subtype='html')
-            smtp.send_message(msg=msg)
-            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
-        else:
+                # smtp.send_message(msg=msg)
+                mark_email_as_trash(mail=mail, email_id=email_ids[i])
+            elif full_address == None or full_address == '':
+                msg = EmailMessage()
+                msg['Subject'] = 'Couldn''t find shipping address'
+                msg['From'] = email_address
+                msg['To'] = ', '.join(recipients)
+                msg.set_content(f'No shipping address found in email {i} \nwhere order number is: {order} \nand tracking number is: {tracking}  \ncopy and paste this link in browser to track order {href} \n\n\nP.S. There might be more issues with this email.')
+                msg.add_alternative(f'''
+                                    <html>
+                                        <p>No shipping address found in email {i}<br />
+                                            where order number is: {order}<br />
+                                            and tracking number is {tracking}
+                                            as a result can not find the amazon order number<br /><br /><br />
+                                            P.S. There might be more issues with this email</p>
+                                        <a href="{href}">Track Order</a>''', subtype='html')
+                smtp.send_message(msg=msg)
+                mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+                continue
+            
             zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
             zip_code = re.findall(pattern=zip_code_pattern, string=full_address)
             address = re.split(r'\t+', full_address)
             name = re.sub(r'\s+', ' ', address[0]).strip()
-            
+                
 
             zip = zip_code[-1]
             found_match_amazon = False
@@ -233,7 +251,7 @@ try:
                     for row_n, row in enumerate(list(reader)):
                         if len(row) > 0:
                             if name.lower() in row[17].lower() and zip in row[23]:
-                                
+                                    
                                 found_match_amazon = True
                                 a_order_id = row[0]
 
@@ -256,7 +274,7 @@ try:
                                         sheet.cell(row=row_num, column=4, value=data_to_append[0])
 
                                     wb.save(excel_file_path)
-                                    
+                                        
                                     mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
                                     del data
                                     break
@@ -282,15 +300,15 @@ try:
                     for row_id, row in enumerate(wm_ws.iter_rows(values_only=True), start=1):
                         cleaned_name = re.sub(r'\s+', ' ', row[5])
                         if zip == row[13] and name == cleaned_name:
-                           found_match = True
-                           print(row)
-                           wm_ws.cell(row=row_id, column=32, value=carrier)
-                           wm_ws.cell(row=row_id, column=33, value=tracking[0]) 
-                           mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
+                            found_match = True
+                            print(row)
+                            wm_ws.cell(row=row_id, column=32, value=carrier)
+                            wm_ws.cell(row=row_id, column=33, value=tracking[0]) 
+                            mail.store(email_ids[i], '+X-GM-LABELS', '\\Trash')
 
                     wm_wb.save(walmart_order_excel_file)
 
-                    
+                        
                 except FileNotFoundError:
                     print(f'Error: No file found at: {excel_file_path}')
                 except PermissionError:
@@ -325,8 +343,10 @@ try:
                     print(f'Error: Permission denied most probably cause file open in another program, close file, and try again')
                 except zipfile.BadZipFile:
                     print(f'BadZipFile caught file at {error_excel_path} is not a valid .xlsx (Excel) file')
-                
-        print(f'----------Processed email #{i}---------')
+        except error.No_Order_Number as non_e:
+            send_message('No Order Number', str(non_e))    
+            print(f'----------Processed email #{i}---------')
+    print(f'----------Processed email #{i}---------')
     mail.close()
     mail.logout()
 

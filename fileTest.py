@@ -18,14 +18,19 @@ try:
     rspn = requests.get(url=url, headers=headers, allow_redirects=True)
     ebay_soup = bs4.BeautifulSoup(rspn.text, 'html.parser')
 
+    if rspn.status_code != 200:
+        raise requests.exceptions.RequestException(f'Server returned {rspn.status_code}')
+
     found_ = ebay_soup.find('span', string=lambda t: t and 'Number' in t)
 
     parent_dt = found_.find_parent()
     parent_div = parent_dt.find_parent()
 
     spans = parent_div.find_all('span')
-    tracking.append(spans[-1].get_text())
+    tracking.append(spans[1].get_text())
 
+    if len(tracking[0]) < 10:
+        raise requests.exceptions.RequestException(f'Could not find tracking number')
     print(tracking)
     
 except requests.exceptions.RequestException as e:
