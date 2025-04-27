@@ -189,7 +189,8 @@ try:
                         raise error.No_Tracking_Number(f'<html><p>No tracking number found in email {i}<br /> where customer shipping address is: {full_address}<br /> and the order number is {order}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{href}">Track Order</a>')
                         
                 except requests.exceptions.RequestException as e:
-                    print(f"Request failed: {e}")        
+                    print(f"Request failed: {e}")
+                    send_message('No Tracking Number', f'<html><p>No tracking number found in email {i}<br /> where customer shipping address is: {full_address}<br /> and the order number is {order}<br />And failed to get from the tracking link in email cause: {e}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{href}">Track Order</a>')
             elif order is None:
                 raise error.No_Order_Number(f'<html><p>No order number found in email {i}<br />where customer shipping address is: {full_address}<br />and tracking number is {tracking}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{href}">Track Order</a></html>')
             elif full_address == None or full_address == '':
