@@ -31,7 +31,7 @@ ebay_order_pattern = re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$')
 keurig_tracking_pattern = re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE)
 keurig_order_pattern = re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE)
 
-mail = imaplib.IMAP4_SSL("imap.gmail.com")
+mail = imaplib.IMAP4_SSL('imap.gmail.com')
 smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
 
 mail.login(email_address, email_password)
