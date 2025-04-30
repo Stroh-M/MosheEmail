@@ -175,6 +175,10 @@ try:
                         
                     ebay_soup = BeautifulSoup(rspn.text, 'html.parser')
 
+                    if scrape_pattern_in_email(ebay_soup, 'h1', re.compile(r'\bverify yourself\b', re.IGNORECASE)):
+                        print(True)
+                        raise error.No_Tracking_Number(f'<html><p>No tracking number found in email {i}<br /> where customer shipping address is: {full_address}<br /> and the order number is {order}<br /> Couldn''t access tracking link<br /><br /><br />P.S. There might be more issues with this email</p><a href="{href}">Track Order</a>')
+
                     found_ = ebay_soup.find('span', string=lambda t: t and 'Number' in t)
 
                     parent_dt = found_.find_parent()

@@ -1,12 +1,15 @@
 import email.utils
+import pandas as pd #type: ignore
 import imaplib, smtplib, email, pytz, re, openpyxl, csv #type: ignore
 from bs4 import BeautifulSoup #type: ignore
+from email.message import EmailMessage
 
 
 class Email():
     def __init__(self, emailAdress, emailPassword):
+        self.email_address = emailAdress
         self.imap_mail = imaplib.IMAP4_SSL(f'imap.gmail.com')
-        self.smtp_mail = smtplib.SMTP_SSL(f'smtp.gmail.com', 465)
+        self.smtp_mail = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         self.imap_mail.login(emailAdress, emailPassword)
         self.smtp_mail.login(emailAdress, emailPassword)
 
@@ -35,14 +38,34 @@ class Email():
         email_date = email.utils.parsedate_to_datetime(date_string).astimezone(local_tz).replace(tzinfo=None)
         return email_date
     
+    def __remove_html_tags(self, message):
+        converted_breaks = re.sub(r'<br\s*/?>', '\n', message)
+        cleaned_string = re.sub(r'<[^>]+>', '', converted_breaks)
+        return cleaned_string
+    
+    def send_message(self, subject, recipients, email_msg):
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = self.email_address
+        msg['To'] = ', '.join(recipients)
+        msg.set_content(self.__remove_html_tags(email_msg))
+        msg.add_alternative(email_msg, subtype='html')
+        self.smtp_mail.send_message(msg=msg)
+
+    def mark_email_as_trash(self, email_id):
+        self.imap_mail.store(email_id, '+X-GM-LABELS', '\\Trash')
+
     def close_mails(self):
-        self.imap_mail.close()
-        self.imap_mail.logout()
-        self.smtp_mail.quit()
+        if self.imap_mail:
+            self.imap_mail.select('INBOX')
+            self.imap_mail.close()
+            self.imap_mail.logout()
+        if self.smtp_mail:
+            self.smtp_mail.quit()
 
 class EmailParser():
-    def __init__(self, email, parser='html.parser'):
-        self.soup = BeautifulSoup(email, parser)
+    def __init__(self, email_html, parser='html.parser'):
+        self.soup = BeautifulSoup(email_html, parser)
 
     def prettify(self):
         return self.soup.prettify()
@@ -120,15 +143,17 @@ class EmailParser():
 
 class File():
     def __init__(self, path, type, sheet='Sheet1', mode='r'):
+        self.type = type
         self.file_path = path
+        self.sheet_name = sheet
         if type == 'xlsx':
             self.workbook = openpyxl.load_workbook(self.file_path)
             self.sheet = self.workbook[sheet]
         elif type in ('txt', 'tsv'):
             self.doc = open(self.file_path, mode=mode)
 
-    def read(self):
-        return csv.reader(self.doc, delimiter='\t')
+    def read(self, delimiter='\t'):
+        return csv.reader(self.doc, delimiter=delimiter)
     
     def get_max_row(self):
         return self.sheet.max_row
@@ -149,3 +174,18 @@ class File():
 
     def save(self):
         self.workbook.save(self.file_path)
+
+    def convert_file_type(self, new_file_path, to_type='tsv'):
+        if self.type == 'xlsx' and to_type in ('tsv', 'csv'):
+            file_to_convert = pd.read_excel(self.file_path, engine='openpyxl', sheet_name=self.sheet)
+            file_to_convert.to_csv(new_file_path, sep=f'{',' if to_type == 'csv' else ('\t' if to_type == 'tsv' else ',')}')
+        else:
+            return NotImplementedError('Can only convert .xlsx to either .tsv or .csv for now')
+
+def get_carrier(tracking_number):
+    if tracking_number.startswith('1Z'):
+        return 'UPS'
+    elif len(tracking_number) in (15, 12):
+        return 'FedEx'
+    elif tracking_number.startswith('92'):
+        return 'USPS'
