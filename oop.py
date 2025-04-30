@@ -100,10 +100,14 @@ class EmailParser():
         else:
             return None
         
+    def remove_space_from_middle_of_string(self, string):
+        clean_string = re.sub(r'\s+', ' ', string=string)
+        return clean_string
+        
     def get_name(self):
         self.get_shipping_address()
         self.address = re.split(r'\t+', self.shipping_address)
-        name = re.sub(r'\s+', ' ', self.address[0]).strip()
+        name = self.remove_space_from_middle_of_string(self.address[0])
         return name
     
     def get_zip(self):
@@ -123,28 +127,25 @@ class File():
         elif type in ('txt', 'tsv'):
             self.doc = open(self.file_path, mode=mode)
 
-
     def read(self):
         return csv.reader(self.doc, delimiter='\t')
     
     def get_max_row(self):
         return self.sheet.max_row
 
+    def iter_rows(self, values_only=True):
+        return self.sheet.iter_rows(values_only=values_only)
 
     def append_data(self, data):
         max_row = self.get_max_row()
         for idx, row_data in enumerate(data, start=max_row+1):
-            print(row_data)
             for col_idx, value in row_data:
-                print(idx)
                 self.sheet.cell(row=idx, column=col_idx, value=value)
-        
+                
+    def fill_data(self, row_num, data):
+        for row in data:
+            for col, value in row:
+                self.sheet.cell(row=row_num, column=col, value=value)
 
     def save(self):
         self.workbook.save(self.file_path)
-            
-        
-
-
-
-

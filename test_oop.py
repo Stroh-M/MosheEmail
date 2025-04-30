@@ -42,13 +42,23 @@ result = mail.get_email_ids('INBOX', 'ebay@ebay.com', 'keurig@em.keurig.com')
 
 
 file = oop.File(path=tsv_file_path, type='txt')
-excel_sheet = oop.File(path=error_excel_path, type='xlsx')
+excel_sheet = oop.File(path=walmart_order_excel_file, type='xlsx', sheet='Po Details')
 
 data_to_add = []
 
+data = [
+        [(1, 'in first column'), (5, 'in fifth column')]
+    ]
 
+for idx, row in enumerate(excel_sheet.iter_rows(), start=1):
+    if 'Xenia Robertson' in row[5]:
+        excel_sheet.fill_data(idx, data=data)
+    else:
+        print(idx, False)
+        
+   
     
-excel_sheet.append_data(data_to_add)
+    
 excel_sheet.save()
 
     
