@@ -121,7 +121,17 @@ class EmailParser():
         else:
             self.shipping_address = None
         return self.shipping_address
-        
+    
+    def get_back_up_tracking(self):
+        tracking = []
+        found_ = self.find_element('span', 'Number')
+
+        parent_dt = found_.find_parent()
+        parent_div = parent_dt.find_parent()
+
+        spans = parent_div.find_all('span')
+        tracking.append(spans[-1].get_text())
+        return tracking        
         
     def remove_space_from_middle_of_string(self, string):
         clean_string = re.sub(r'\s+', ' ', string=string)
@@ -135,6 +145,10 @@ class EmailParser():
         else: 
             name = ''
         return name
+    
+    def find_element(self, element, string):
+        found_element = self.soup.find(element, string=lambda t: t and string in t)
+        return found_element
     
     def get_zip(self):
         address = self.get_shipping_address()
