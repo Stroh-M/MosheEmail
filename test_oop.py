@@ -1,4 +1,4 @@
-import emailhandling, os, re, error, datetime, zipfile
+import emailhandling, os, re, error, datetime, zipfile, traceback
 from email import utils
 from dotenv import load_dotenv #type: ignore
 
@@ -32,10 +32,6 @@ try:
     print('login successful')
     for i in range(len(email_ids)):
         try:
-            full_address = None
-            order = None
-            tracking = None
-            
             email_html = mail.get_html(email_id=email_ids[i])
 
             email_soup = emailhandling.EmailParser(email_html)
@@ -53,14 +49,16 @@ try:
                 order = email_soup.find_pattern('td', keurig_order_pattern)
             
             full_address = email_soup.get_shipping_address()
+            print(full_address)
 
             zip = email_soup.get_zip()
+            print(zip)
 
             name = email_soup.get_name()
 
             if tracking is None:
                 raise error.No_Tracking_Number(f'<html><p>No tracking number found in email {i}<br /> where customer shipping address is: {full_address}<br /> and the order number is {order}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a>')
-            if order is None:
+            elif order is None:
                 raise error.No_Order_Number(f'<html><p>No order number found in email {i}<br />where customer shipping address is: {full_address}<br />and tracking number is {tracking}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a></html>')
             elif full_address is None or full_address == '':
                 raise error.No_Shipping_Address(f'<html><p>No shipping address found in email {i}<br />where order number is: {order}<br />and tracking number is {tracking} as a result can not find the amazon order number<br /><br /><br /> P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a>')
@@ -100,6 +98,7 @@ try:
                 print(f'Error: Permission denied to open file at: {tsv_file_path}')
             except OSError as e:
                 print(f'An unexpected error occured: {e}')
+                print(f'Traceback: {traceback.format_exc()}')
             if not found_match_amazon:
                 try:
                     w_s = emailhandling.File(walmart_order_excel_file, 'xlsx', sheet='Po Details')
@@ -122,6 +121,7 @@ try:
                     print(f'BadZipFile caught file at {walmart_order_excel_file} is not a valid .xlsx (Excel) file')
                 except Exception as e:
                     print(f'Unexpected error: {e}')
+                    print(f'Traceback: {traceback.format_exc()}')
 
             if not found_match:
                 error_message = 'Did not find match in walmart nor amazon'
@@ -141,12 +141,14 @@ try:
                     print(f'BadZipFile caught file at {error_excel_path} is not a valid .xlsx (Excel) file')
                 except Exception as e:
                     print(f'Unexpected error: {e}')
+                    print(f'Traceback: {traceback.format_exc()}')
         except error.No_Order_Number as non_e:
             mail.send_message('No Order Number', recipients=recipients, email_msg=str(non_e))
         except error.No_Shipping_Address as nsa_e:
             mail.send_message('No Shipping Address', recipients, str(nsa_e))
         except error.No_Tracking_Number as ntn_e:
             mail.send_message('No Tracking Number', recipients, str(ntn_e))
+            mail.mark_email_as_trash(email_id=email_ids[i])
         print(f'---------- Processed email #{i} ---------')
     mail.close_mails()
     w_s.convert_file_type(shipping_txt_file)
@@ -154,4 +156,6 @@ try:
 except emailhandling.imaplib.IMAP4_SSL.error as mail_s_e:
     print(f'error: {mail_s_e}')
 except Exception as e:
+    tb_str = traceback.format_exc()
     print(f'Unexpected error: {e}')
+    print(f'Traceback:\n {tb_str}')

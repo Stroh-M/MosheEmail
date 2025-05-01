@@ -116,28 +116,34 @@ class EmailParser():
     def get_shipping_address(self):
         if self.soup.find('td', string=lambda t: t and 'Shipping Address' in t):
             self.shipping_address = self.__k_shipping()
-            return self.shipping_address
         elif self.soup.find('h3', string=lambda t: t and 'Your order will ' in t):
             self.shipping_address = self.__e_shipping()
-            return self.shipping_address
         else:
-            return None
+            self.shipping_address = None
+        return self.shipping_address
+        
         
     def remove_space_from_middle_of_string(self, string):
         clean_string = re.sub(r'\s+', ' ', string=string)
         return clean_string
         
     def get_name(self):
-        self.get_shipping_address()
-        self.address = re.split(r'\t+', self.shipping_address)
-        name = self.remove_space_from_middle_of_string(self.address[0])
+        address = self.get_shipping_address()
+        if address is not None:
+            self.address = re.split(r'\t+', self.shipping_address)
+            name = self.remove_space_from_middle_of_string(self.address[0])
+        else: 
+            name = ''
         return name
     
     def get_zip(self):
-        self.get_shipping_address()
-        zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
-        zip_code = re.findall(pattern=zip_code_pattern, string=self.shipping_address)
-        zip = zip_code[-1]
+        address = self.get_shipping_address()
+        if address is not None:
+            zip_code_pattern = re.compile(r'\b(\d{5})(?:-\d{4})?\b')
+            zip_code = re.findall(pattern=zip_code_pattern, string=self.shipping_address)
+            zip = zip_code[-1]
+        else:
+            zip = ''
         return zip
     
 
@@ -177,10 +183,14 @@ class File():
 
     def convert_file_type(self, new_file_path, to_type='tsv'):
         if self.type == 'xlsx' and to_type in ('tsv', 'csv'):
-            file_to_convert = pd.read_excel(self.file_path, engine='openpyxl', sheet_name=self.sheet)
+            file_to_convert = pd.read_excel(self.file_path, engine='openpyxl', sheet_name=self.sheet_name)
             file_to_convert.to_csv(new_file_path, sep=f'{',' if to_type == 'csv' else ('\t' if to_type == 'tsv' else ',')}')
         else:
             return NotImplementedError('Can only convert .xlsx to either .tsv or .csv for now')
+        
+    def delete_all_cells(self):
+        max_row = self.get_max_row()
+        self.sheet.delete_rows(idx=2, amount=max_row)
 
 def get_carrier(tracking_number):
     if tracking_number.startswith('1Z'):
