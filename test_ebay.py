@@ -43,7 +43,6 @@ try:
             status = False
 
         i += 1
-        tracking = ['',]
 
         if tracking is not None and len(tracking[0]) < 10 :
             raise error.No_Tracking_Number(f'<html><p>No tracking number found in email <br /> where customer shipping address is: <br /> and the order number is <br /><br /><br />P.S. There might be more issues with this email</p><a href="{href}">Track Order</a>')
