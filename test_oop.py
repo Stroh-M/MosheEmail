@@ -61,10 +61,7 @@ def get_backup_tracking(url):
             return tracking
         if i >= 2 or tracking is not None:
             status = False
-        i += 1
-
-
-        
+        i += 1      
 
 try:
     mail = emailhandling.Email(email_address, email_password)
