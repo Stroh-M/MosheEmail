@@ -114,7 +114,7 @@ try:
                 reader = amazon_orders.read()
                 for row_n, row in enumerate(list(reader)):
                     if len(row) > 0:
-                        if name.lower() in row[17].lower().replace('.', '') and zip in row[23]:
+                        if name.lower().replace('.', '') in emailhandling.EmailParser.remove_space_from_middle_of_string(None, row[17].lower().replace('.', '') and zip in row[23]):
                             found_match_amazon = True
                             amazon_order_id = row[0]
 
@@ -194,7 +194,8 @@ try:
             mail.mark_email_as_trash(email_id=email_ids[i])
         print(f'---------- Processed email #{i} ---------')
     mail.close_mails()
-    a_s.convert_file_type(shipping_txt_file)
+    if a_s:
+        a_s.convert_file_type(shipping_txt_file)
     print('Logged out successfully')
 except emailhandling.imaplib.IMAP4_SSL.error as mail_s_e:
     print(f'error: {mail_s_e}')
