@@ -211,5 +211,5 @@ def get_carrier(tracking_number):
         return 'UPS'
     elif len(tracking_number) in (15, 12):
         return 'FedEx'
-    elif tracking_number.startswith('92'):
+    elif tracking_number.startswith('92') or tracking_number.startswith('94'):
         return 'USPS'
