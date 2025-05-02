@@ -190,7 +190,7 @@ try:
             mail.mark_email_as_trash(email_id=email_ids[i])
         print(f'---------- Processed email #{i} ---------')
     mail.close_mails()
-    w_s.convert_file_type(shipping_txt_file)
+    a_s.convert_file_type(shipping_txt_file)
     print('Logged out successfully')
 except emailhandling.imaplib.IMAP4_SSL.error as mail_s_e:
     print(f'error: {mail_s_e}')
