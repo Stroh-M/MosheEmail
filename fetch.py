@@ -168,7 +168,7 @@ try:
                     tracking = []
                     url = scrape_tracking_link(soup=soup)
 
-                    rspn = requests.get(url=url, headers=headers, allow_redirects=True)
+                    rspn = requests.get(url=url, headers=headers, allow_redirects=True,verify=False)
 
                     if rspn.status_code != 200:
                         raise error.No_Tracking_Number(f'<html><p>No tracking number found in email {i}<br /> where customer shipping address is: {full_address}<br /> and the order number is {order}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{href}">Track Order</a>')
