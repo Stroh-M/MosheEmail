@@ -1,4 +1,4 @@
-import error, email_handling, re, os
+import error, email_handling, re, os, email_utils_beta
 from dotenv import load_dotenv #type: ignore
 
 load_dotenv(override=True)
@@ -55,7 +55,7 @@ def proccess_email(mail, email_ids, id):
         name = email_soup.get_name()
 
         if tracking is None:
-            tracking = email_handling.get_backup_tracking(tracking_href)
+            tracking = email_utils_beta.get_backup_tracking(tracking_href)
             if tracking is None:
                 raise error.No_Tracking_Number(f'<html><p>No tracking number found in email {id}<br /> where customer shipping address is: {full_address}<br /> and the order number is {order}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a>')
         elif order is None:
