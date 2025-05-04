@@ -1,6 +1,6 @@
 import email.utils
 import pandas as pd #type: ignore
-import imaplib, smtplib, email, pytz, re, openpyxl, csv #type: ignore
+import imaplib, smtplib, email, pytz, re, openpyxl, csv, requests, error #type: ignore
 from bs4 import BeautifulSoup #type: ignore
 from email.message import EmailMessage
 
@@ -205,11 +205,3 @@ class File():
     def delete_all_cells(self):
         max_row = self.get_max_row()
         self.sheet.delete_rows(idx=2, amount=max_row)
-
-def get_carrier(tracking_number):
-    if tracking_number.startswith('1Z'):
-        return 'UPS'
-    elif len(tracking_number) in (15, 12):
-        return 'FedEx'
-    elif tracking_number.startswith('92') or tracking_number.startswith('94'):
-        return 'USPS'
