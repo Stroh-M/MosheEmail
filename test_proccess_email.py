@@ -25,7 +25,8 @@ def proccess_email(mail, email_ids, id):
     ebay_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
     ebay_order_pattern = re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$')
     track_order_url_pattern = re.compile(r'\btrack (order|delivery)\b', re.IGNORECASE)
-
+    track_order_url_backup = re.compile(r'\btrack my order\b', re.IGNORECASE)
+    keurig_tracking_pattern_a = re.compile(r'Tracking Number:\s*([A-Za-z0-9]+)')
     keurig_tracking_pattern = re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE)
     keurig_order_pattern = re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE)
 
@@ -39,13 +40,18 @@ def proccess_email(mail, email_ids, id):
         tracking = email_soup.find_pattern('p', ebay_tracking_pattern)
         if tracking is None:
             tracking = email_soup.find_pattern('td', keurig_tracking_pattern)
-
-        tracking_href = email_soup.find_pattern('a', track_order_url_pattern)
+            
+        if tracking is None:
+            tracking = email_soup.find_pattern('td', pattern=keurig_tracking_pattern_a)
+          
+        tracking_href = email_soup.find_pattern('a', track_order_url_pattern, href=True)
+        if tracking_href is None:
+            tracking_href = email_soup.find_pattern('a', pattern=track_order_url_backup, href=True)
 
         order = email_soup.find_pattern('span', ebay_order_pattern)
         if order is None:
             order = email_soup.find_pattern('td', keurig_order_pattern)
-                
+            
         full_address = email_soup.get_shipping_address()
         print(full_address)
 
@@ -58,12 +64,10 @@ def proccess_email(mail, email_ids, id):
             tracking = email_utils_beta.get_backup_tracking(tracking_href)
             if tracking is None:
                 raise error.No_Tracking_Number(f'<html><p>No tracking number found in email {id}<br /> where customer shipping address is: {full_address}<br /> and the order number is {order}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a>')
-        elif order is None:
-            raise error.No_Order_Number(f'<html><p>No order number found in email {id}<br />where customer shipping address is: {full_address}<br />and tracking number is {tracking}<br /><br /><br />P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a></html>')
         elif full_address is None or full_address == '':
             raise error.No_Shipping_Address(f'<html><p>No shipping address found in email {id}<br />where order number is: {order}<br />and tracking number is {tracking} as a result can not find the amazon order number<br /><br /><br /> P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a>')
         
-        return tracking_href, email_date, name, zip, order[0], tracking[0]
+        return tracking_href, email_date, name, zip, order, tracking[0]
     except:
         pass
     
