@@ -83,7 +83,7 @@ class EmailParser():
             for e in self.soup.find_all(element):
                 e_text = e.get_text()
                 found_e = re.findall(pattern=pattern, string=e_text)
-                if len(found_e) > 0:
+                if found_e:
                     return found_e
                 
     def __k_shipping(self):
