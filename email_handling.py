@@ -210,6 +210,21 @@ class File():
             file_to_convert.to_csv(new_file_path, sep=f'{',' if to_type == 'csv' else ('\t' if to_type == 'tsv' else ',')}')
         else:
             return NotImplementedError('Can only convert .xlsx to either .tsv or .csv for now')
+    
+    def find_column_index(self, column_title):
+        if self.type == 'xlsx':
+            for idx, col in enumerate(self.sheet.iter_cols(max_row=1, values_only=True), start=1):
+                if column_title == col[0]:
+                    return idx
+        elif self.type in ('tsv', 'csv'):
+            reader = self.read()
+            for idx, row in enumerate(reader):
+                if idx == 1:
+                    break
+                for c_idx, col in enumerate(row):
+                    if col.strip() == column_title:
+                        return c_idx
+                
         
     def delete_all_cells(self):
         max_row = self.get_max_row()
