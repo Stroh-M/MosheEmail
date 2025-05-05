@@ -72,7 +72,7 @@ class EmailParser():
     
     # If a is passed as element it will get the href for that a element 
     def find_pattern(self, element, pattern, href=False):
-        if element == 'a':
+        if href:
             for a in self.soup.find_all(element):
                 a_text = a.get_text()
                 found_a = re.findall(pattern=pattern, string=a_text)
