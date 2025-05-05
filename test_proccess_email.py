@@ -1,4 +1,4 @@
-import error, email_handling, re, os, email_utils_beta
+import error, email_handling, re, os, email_utils_beta, logging, zipfile, datetime, traceback
 from dotenv import load_dotenv #type: ignore
 
 load_dotenv(override=True)
@@ -20,6 +20,52 @@ walmart_order_excel_file = os.getenv("WALMART_ORDER_EXCEL_FILE")
 mail = email_handling.Email(email_address, email_password)
 email_ids = mail.get_email_ids('INBOX', email_from_1=email_from_1, email_from_2=email_from_2)
 
+def write_to_excel(path, sheet_name, data):
+    try:
+        a_s = email_handling.File(path=path, type='xlsx', sheet=sheet_name)
+        a_s.append_data(data=data)
+        a_s.save()
+    except FileNotFoundError:
+        print(f'Error: No file found at: {path}')
+    except PermissionError:
+        print(f'Error: Permission denied most probably cause file open in another program, close file, and try again')
+    except zipfile.BadZipFile:
+        print(f'BadZipFile caught file at {path} is not a valid .xlsx (Excel) file')
+        
+def handle_amazon_orders(txt_path, name, zip, tracking, excel_path, sheet):
+    a_o = email_handling.File(path=txt_path, type='tsv')
+    name_index = a_o.find_column_index('recipient-name')
+    zip_index = a_o.find_column_index('ship-postal-code')
+    order_id_idx = a_o.find_column_index('order-id')
+    try:
+        for row_n, row in enumerate(a_o.read()):
+            if len(row) > 0:
+                if name.lower().replace('.', '') in email_handling.EmailParser.remove_space_from_middle_of_string(None, string=row[name_index]) and zip in row[zip_index]:
+                    global found_match_amazon
+                    found_match_amazon = False
+                    amazon_order_id = row[order_id_idx]
+                    
+                    data = []
+                    
+                    carrier = email_utils_beta.get_carrier(tracking_number=tracking)
+                    ship_date = datetime.datetime.now().date()
+                    
+                    a_s = email_handling.File(path=excel_path, type='xlsx', sheet='ShippingConfirmation')
+                    
+                    a_e_order_id_idx = a_s.find_column_index('order-id')
+                    a_e_ship_date_idx = a_s.find_column_index('ship-date')
+                    a_e_carrier_code_idx = a_s.find_column_index('carrier-code')
+                    a_e_tracking_number_idx = a_s.find_column_index('tracking-number')
+                    data.append([(a_e_order_id_idx, amazon_order_id), (a_e_ship_date_idx, ship_date), (a_e_carrier_code_idx, carrier), (a_e_tracking_number_idx, tracking)])
+                    
+                    write_to_excel(path=excel_path, sheet_name=sheet, data=data)   
+    except FileNotFoundError:
+        print(f'Error: No file found at: {txt_path}')
+    except PermissionError:
+        print(f'Error: Permission denied to open file at: {txt_path}')
+    except OSError as e:
+        print(f'An unexpected error occured: {e}')
+        print(f'Traceback: {traceback.format_exc()}')
 
 def proccess_email(mail, email_ids, id):
     ebay_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
@@ -67,10 +113,9 @@ def proccess_email(mail, email_ids, id):
         elif full_address is None or full_address == '':
             raise error.No_Shipping_Address(f'<html><p>No shipping address found in email {id}<br />where order number is: {order}<br />and tracking number is {tracking} as a result can not find the amazon order number<br /><br /><br /> P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a>')
         
-        return tracking_href, email_date, name, zip, order, tracking[0]
+        handle_amazon_orders(txt_path=tsv_file_path, name=name, zip=zip, tracking=tracking[0], excel_path=excel_file_path, sheet=sheet_name)
     except:
         pass
     
 for i in range(len(email_ids)):    
-    values_ = proccess_email(mail=mail, email_ids=email_ids, id=i)
-    print(values_, flush=True)
+    proccess_email(mail=mail, email_ids=email_ids, id=i)
