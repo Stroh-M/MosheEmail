@@ -71,7 +71,7 @@ class EmailParser():
         return self.soup.prettify()
     
     # If a is passed as element it will get the href for that a element 
-    def find_pattern(self, element, pattern):
+    def find_pattern(self, element, pattern, href=False):
         if element == 'a':
             for a in self.soup.find_all(element):
                 a_text = a.get_text()
@@ -106,6 +106,13 @@ class EmailParser():
         full_address = "\t".join(address_lines)
         return full_address
     
+    def __k_shipping_h4(self):
+        shipping_h4 = self.soup.find('h4', string=lambda t: t and 'Shipping Address' in t)
+        shipping_p = shipping_h4.find_next_sibling('p')
+        if shipping_p:
+            full_address = shipping_p.get_text(separator='\t').strip()
+            return full_address
+        
     def __e_shipping(self):
         shipping_h3 = self.soup.find('h3', string=lambda t: t and 'Your order will ' in t)
         shipping_p = shipping_h3.find_next_sibling('p')
@@ -118,6 +125,8 @@ class EmailParser():
             self.shipping_address = self.__k_shipping()
         elif self.soup.find('h3', string=lambda t: t and 'Your order will ' in t):
             self.shipping_address = self.__e_shipping()
+        elif self.soup.find('h4', string=lambda t: t and 'Shipping Address' in t):
+            self.shipping_address = self.__k_shipping_h4()
         else:
             self.shipping_address = None
         return self.shipping_address
