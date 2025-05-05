@@ -66,6 +66,22 @@ def handle_amazon_orders(txt_path, name, zip, tracking, excel_path, sheet):
     except OSError as e:
         print(f'An unexpected error occured: {e}')
         print(f'Traceback: {traceback.format_exc()}')
+        
+def handle_walmart_orders(path, name, zip, tracking, sheet):
+    try:
+        w_s = email_handling.File(path=path, type='xlsx', sheet='Po Details')
+        data = []
+        
+        walmart_name_idx = w_s.find_column_index('Customer Name')
+        walmart_zip_idx = w_s.find_column_index('Zip')
+        walmart_update_tracking_idx = w_s.find_column_index('Update Tracking Number')
+        walmart_update_carrier = w_s.find_column_index('Update Carrier')
+        
+    except:
+        pass 
+        
+        
+    
 
 def proccess_email(mail, email_ids, id):
     ebay_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
