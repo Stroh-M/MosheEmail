@@ -1,12 +1,8 @@
-import error, email_handling, re, os, email_utils_beta, logging, zipfile, datetime, traceback
+import error, email_handling, re, os, email_utils_beta, logging, datetime
 from dotenv import load_dotenv #type: ignore
 
 load_dotenv(override=True)
 
-email_address = os.getenv("EMAIL_ADDRESS")
-email_password = os.getenv("EMAIL_PASSWORD")
-email_from_1 = os.getenv("EMAIL_FROM_1")
-email_from_2 = os.getenv("EMAIL_FROM_2")
 recipient_1 = os.getenv("RECIPIENT_1")
 recipient_2 = os.getenv("RECIPIENT_2")
 excel_file_path = os.getenv("EXCEL_FILE_PATH")
@@ -15,11 +11,6 @@ sheet_name = os.getenv("SHEET_NAME")
 error_excel_path = os.getenv("ERROR_EXCEL_PATH")
 shipping_txt_file = os.getenv("SHIPPING_TXT_FILE")
 walmart_order_excel_file = os.getenv("WALMART_ORDER_EXCEL_FILE")
-
-
-mail = email_handling.Email(email_address, email_password)
-email_ids = mail.get_email_ids('INBOX', email_from_1=email_from_1, email_from_2=email_from_2)
-
         
 def handle_amazon_orders(txt_path, name, zip, tracking, excel_path, sheet):
     try:
@@ -75,9 +66,6 @@ def handle_walmart_orders(path, name, zip, tracking, sheet):
     except Exception as e:
         print(f'Error: {e}') 
         
-        
-    
-
 def proccess_email(mail, email_ids, id):
     ebay_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
     ebay_order_pattern = re.compile(r'^\s*\d{2}-\d{5}-\d{5}\s*$')
@@ -86,6 +74,8 @@ def proccess_email(mail, email_ids, id):
     keurig_tracking_pattern_a = re.compile(r'Tracking Number:\s*([A-Za-z0-9]+)')
     keurig_tracking_pattern = re.compile(r'Tracking\s*#\s*:\s*(\S+)', re.IGNORECASE)
     keurig_order_pattern = re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE)
+    
+    recipients = [recipient_1, recipient_2]
 
     try:
         email_html = mail.get_html(email_id=email_ids[id])
@@ -129,8 +119,10 @@ def proccess_email(mail, email_ids, id):
             result_walmart = handle_walmart_orders(walmart_order_excel_file, name=name, zip=zip, tracking=tracking[0], sheet='Po Details')
             if not result_walmart:
                 print(f'{name}, {zip}, {order[0]}, couldn''t find match in Amazon or Walmart')
-        # print(result_walmart)
-        # print(result_amazon)   
+    except error.No_Shipping_Address as nsa_e:
+        mail.send_message('No Shipping Address', recipients, str(nsa_e))
+    except error.No_Tracking_Number as ntn_e:
+        mail.send_message('No Tracking Number', recipients, str(ntn_e))   
     except Exception as e:
         print(f'Error: {e}')
     
