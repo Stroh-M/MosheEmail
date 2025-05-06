@@ -1,3 +1,3 @@
-import process_emails
+import proccess_emails
 
-process_emails.main()
+proccess_emails.main()
