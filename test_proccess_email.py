@@ -20,65 +20,60 @@ walmart_order_excel_file = os.getenv("WALMART_ORDER_EXCEL_FILE")
 mail = email_handling.Email(email_address, email_password)
 email_ids = mail.get_email_ids('INBOX', email_from_1=email_from_1, email_from_2=email_from_2)
 
-def write_to_excel(path, sheet_name, data):
-    try:
-        a_s = email_handling.File(path=path, type='xlsx', sheet=sheet_name)
-        a_s.append_data(data=data)
-        a_s.save()
-    except FileNotFoundError:
-        print(f'Error: No file found at: {path}')
-    except PermissionError:
-        print(f'Error: Permission denied most probably cause file open in another program, close file, and try again')
-    except zipfile.BadZipFile:
-        print(f'BadZipFile caught file at {path} is not a valid .xlsx (Excel) file')
         
 def handle_amazon_orders(txt_path, name, zip, tracking, excel_path, sheet):
-    a_o = email_handling.File(path=txt_path, type='tsv')
-    name_index = a_o.find_column_index('recipient-name')
-    zip_index = a_o.find_column_index('ship-postal-code')
-    order_id_idx = a_o.find_column_index('order-id')
     try:
+        found_match_amazon = False
+        a_o = email_handling.File(txt_path, type='tsv')
+        print(name)
         for row_n, row in enumerate(a_o.read()):
             if len(row) > 0:
-                if name.lower().replace('.', '') in email_handling.EmailParser.remove_space_from_middle_of_string(None, string=row[name_index]) and zip in row[zip_index]:
-                    global found_match_amazon
-                    found_match_amazon = False
-                    amazon_order_id = row[order_id_idx]
+                if name.lower().replace('.', '') in email_handling.EmailParser.remove_space_from_middle_of_string(None, string=row[17].lower().replace('.', '')) and zip in row[23]:
+                    
+                    found_match_amazon = True
+                    amazon_order_id = row[0]
                     
                     data = []
                     
                     carrier = email_utils_beta.get_carrier(tracking_number=tracking)
                     ship_date = datetime.datetime.now().date()
                     
-                    a_s = email_handling.File(path=excel_path, type='xlsx', sheet='ShippingConfirmation')
+                    data.append([(1, amazon_order_id), (4, ship_date), (5, carrier), (7, tracking)])
+
+                    a_s = email_handling.File(path=excel_path, type='xlsx', sheet=sheet)
                     
-                    a_e_order_id_idx = a_s.find_column_index('order-id')
-                    a_e_ship_date_idx = a_s.find_column_index('ship-date')
-                    a_e_carrier_code_idx = a_s.find_column_index('carrier-code')
-                    a_e_tracking_number_idx = a_s.find_column_index('tracking-number')
-                    data.append([(a_e_order_id_idx, amazon_order_id), (a_e_ship_date_idx, ship_date), (a_e_carrier_code_idx, carrier), (a_e_tracking_number_idx, tracking)])
+                    a_s.append_data(data=data)
+                    a_s.save()
                     
-                    write_to_excel(path=excel_path, sheet_name=sheet, data=data)   
-    except FileNotFoundError:
-        print(f'Error: No file found at: {txt_path}')
-    except PermissionError:
-        print(f'Error: Permission denied to open file at: {txt_path}')
-    except OSError as e:
-        print(f'An unexpected error occured: {e}')
-        print(f'Traceback: {traceback.format_exc()}')
+        if found_match_amazon:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f'Error: {e}')
         
 def handle_walmart_orders(path, name, zip, tracking, sheet):
     try:
-        w_s = email_handling.File(path=path, type='xlsx', sheet='Po Details')
+        found_match = False
+        w_s = email_handling.File(path=path, type='xlsx', sheet=sheet)
         data = []
         
-        walmart_name_idx = w_s.find_column_index('Customer Name')
-        walmart_zip_idx = w_s.find_column_index('Zip')
-        walmart_update_tracking_idx = w_s.find_column_index('Update Tracking Number')
-        walmart_update_carrier = w_s.find_column_index('Update Carrier')
+        carrier = email_utils_beta.get_carrier(tracking_number=tracking)
         
-    except:
-        pass 
+        data.append([(37, carrier), (38, tracking)])
+        
+        for idx, row in enumerate(w_s.iter_rows(), start=1):
+            if zip == row[13] and name == email_handling.EmailParser.remove_space_from_middle_of_string(None, string=row[5]):
+                found_match = True
+                w_s.fill_data(idx, data=data)
+        w_s.save()
+        
+        if found_match:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f'Error: {e}') 
         
         
     
@@ -129,9 +124,38 @@ def proccess_email(mail, email_ids, id):
         elif full_address is None or full_address == '':
             raise error.No_Shipping_Address(f'<html><p>No shipping address found in email {id}<br />where order number is: {order}<br />and tracking number is {tracking} as a result can not find the amazon order number<br /><br /><br /> P.S. There might be more issues with this email</p><a href="{tracking_href}">Track Order</a>')
         
-        handle_amazon_orders(txt_path=tsv_file_path, name=name, zip=zip, tracking=tracking[0], excel_path=excel_file_path, sheet=sheet_name)
-    except:
-        pass
+        result_amazon = handle_amazon_orders(txt_path=tsv_file_path, name=name, zip=zip, tracking=tracking[0], excel_path=excel_file_path, sheet=sheet_name)
+        if not result_amazon:
+            result_walmart = handle_walmart_orders(walmart_order_excel_file, name=name, zip=zip, tracking=tracking[0], sheet='Po Details')
+            if not result_walmart:
+                print(f'{name}, {zip}, {order[0]}, couldn''t find match in Amazon or Walmart')
+        # print(result_walmart)
+        # print(result_amazon)   
+    except Exception as e:
+        print(f'Error: {e}')
     
-for i in range(len(email_ids)):    
-    proccess_email(mail=mail, email_ids=email_ids, id=i)
+def clear_amazon_shippment_excel(path, sheet):
+    try:
+        a_ws = email_handling.File(path=path, type='xlsx', sheet=sheet)
+        a_ws.delete_all_cells()
+        a_ws.save()
+    except Exception as e:
+        print(f'Error: {e}')
+    
+def main():
+    email_address = os.getenv("EMAIL_ADDRESS")
+    email_password = os.getenv("EMAIL_PASSWORD")
+    email_from_1 = os.getenv("EMAIL_FROM_1")
+    email_from_2 = os.getenv("EMAIL_FROM_2")
+    excel_file_path = os.getenv("EXCEL_FILE_PATH")
+    sheet_name = os.getenv("SHEET_NAME")
+        
+    mail = email_handling.Email(email_address, email_password)
+    email_ids = mail.get_email_ids('INBOX', email_from_1=email_from_1, email_from_2=email_from_2)
+        
+    clear_amazon_shippment_excel(excel_file_path, sheet=sheet_name)
+    for i in range(len(email_ids)):    
+        proccess_email(mail=mail, email_ids=email_ids, id=i)
+        print(f'---------process email {i}')
+            
+main()
