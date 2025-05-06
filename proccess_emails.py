@@ -118,11 +118,18 @@ def proccess_email(mail, email_ids, id):
         if not result_amazon:
             result_walmart = handle_walmart_orders(walmart_order_excel_file, name=name, zip=zip, tracking=tracking[0], sheet='Po Details')
             if not result_walmart:
-                print(f'{name}, {zip}, {order[0]}, couldn''t find match in Amazon or Walmart')
+                print(f'{name}, {zip}, {order[0]}, couldn''t find match in Amazon or Walmart')        
+        
+        if result_amazon:
+            mail.mark_email_as_trash(email_ids[id])
+        elif result_walmart:
+            mail.mark_email_as_trash(email_ids[id])   
     except error.No_Shipping_Address as nsa_e:
         mail.send_message('No Shipping Address', recipients, str(nsa_e))
+        mail.mark_email_as_trash(email_ids[id]) 
     except error.No_Tracking_Number as ntn_e:
-        mail.send_message('No Tracking Number', recipients, str(ntn_e))   
+        mail.send_message('No Tracking Number', recipients, str(ntn_e))
+        mail.mark_email_as_trash(email_ids[id])   
     except Exception as e:
         print(f'Error: {e}')
     
