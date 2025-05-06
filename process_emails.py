@@ -149,5 +149,3 @@ def main():
     for i in range(len(email_ids)):    
         proccess_email(mail=mail, email_ids=email_ids, id=i)
         print(f'---------process email {i}')
-            
-main()
