@@ -1,6 +1,6 @@
 import email.utils
 import pandas as pd #type: ignore
-import imaplib, smtplib, email, pytz, re, openpyxl, csv, requests, error #type: ignore
+import imaplib, smtplib, email, pytz, re, openpyxl, csv, traceback, zipfile, requests, error #type: ignore
 from bs4 import BeautifulSoup #type: ignore
 from email.message import EmailMessage
 
@@ -172,14 +172,24 @@ class EmailParser():
 
 class File():
     def __init__(self, path, type, sheet='Sheet1', mode='r'):
-        self.type = type
-        self.file_path = path
-        self.sheet_name = sheet
-        if type == 'xlsx':
-            self.workbook = openpyxl.load_workbook(self.file_path)
-            self.sheet = self.workbook[sheet]
-        elif type in ('txt', 'tsv'):
-            self.doc = open(self.file_path, mode=mode)
+        try:
+            self.type = type
+            self.file_path = path
+            self.sheet_name = sheet
+            if type == 'xlsx':
+                self.workbook = openpyxl.load_workbook(self.file_path)
+                self.sheet = self.workbook[sheet]
+            elif type in ('txt', 'tsv'):
+                self.doc = open(self.file_path, mode=mode)
+        except FileNotFoundError:
+            print(f'Error: No file found at: {self.file_path}')
+        except PermissionError:
+            print(f'Error: Permission denied to open file at: {self.file_path}')
+        except zipfile.BadZipFile:
+            print(f'BadZipFile caught file at {self.file_path} is not a valid .xlsx (Excel) file')
+        except OSError as e:
+            print(f'An unexpected error occured: {e}')
+            print(f'Traceback: {traceback.format_exc()}')
 
     def read(self, delimiter='\t'):
         return csv.reader(self.doc, delimiter=delimiter)
