@@ -1,4 +1,5 @@
-import email_handling, requests, error #type:ignore
+import email_handling, requests, error  #type:ignore
+import pandas as pd #type:ignore
 
 # To be moved to file email_utils
 def get_carrier(tracking_number):
@@ -48,3 +49,7 @@ def get_backup_tracking(url):
             i += 1
     except Exception as e:
         print(f'Error: {e}')
+        
+def convert_file(file_path, new_path, sheet):
+    file_to_convert = pd.read_excel(file_path, engine='openpyxl', sheet_name=sheet)
+    file_to_convert.to_csv(new_path, sep='\t')
