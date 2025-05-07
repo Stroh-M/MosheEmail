@@ -1,14 +1,20 @@
-import email_handling, requests, error  #type:ignore
+import email_handling, requests, error, logging  #type:ignore
 import pandas as pd #type:ignore
+
+logger = logging.getLogger(__name__)
 
 # To be moved to file email_utils
 def get_carrier(tracking_number):
-    if tracking_number.startswith('1Z'):
-        return 'UPS'
-    elif len(tracking_number) in (15, 12):
-        return 'FedEx'
-    elif tracking_number.startswith('92') or tracking_number.startswith('94'):
-        return 'USPS'
+    try:
+        if tracking_number.startswith('1Z'):
+            return 'UPS'
+        elif len(tracking_number) in (15, 12):
+            return 'FedEx'
+        elif tracking_number.startswith('92') or tracking_number.startswith('94'):
+            return 'USPS'
+    except Exception as e:
+        print(f'Error: {e}')
+        logger.exception("Error: during get_carrier()")
     
     
 def get_backup_tracking(url):
@@ -42,14 +48,18 @@ def get_backup_tracking(url):
 
                 if tracking is not None and len(tracking[0]) < 10:
                     raise error.No_Tracking_Number(f'<html><p>No tracking number found in email <br /><br />P.S. There might be more issues with this email</p><a href="{url}">Track Order</a>')
-
+                logger.info('Got tracking from url provided in email')
                 return tracking
             if i >= 2 or tracking is not None:
                 status = False
             i += 1
-    except Exception as e:
-        print(f'Error: {e}')
+    except Exception:
+        logger.exception(f'Error: during get_backup_tracking()')
         
 def convert_file(file_path, new_path, sheet):
-    file_to_convert = pd.read_excel(file_path, engine='openpyxl', sheet_name=sheet)
-    file_to_convert.to_csv(new_path, sep='\t')
+    try:
+        file_to_convert = pd.read_excel(file_path, engine='openpyxl', sheet_name=sheet)
+        file_to_convert.to_csv(new_path, sep='\t')
+        logger.info('Succefully converted to .tsv file')
+    except Exception:
+        logger.exception('Error: during get convert_file()')
