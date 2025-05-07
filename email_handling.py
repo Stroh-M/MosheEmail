@@ -14,8 +14,9 @@ class Email():
             self.smtp_mail = smtplib.SMTP_SSL('smtp.gmail.com', 465)
             self.imap_mail.login(emailAdress, emailPassword)
             self.smtp_mail.login(emailAdress, emailPassword)
+            logger.info('Login Successfully 🎉')
         except Exception:
-            logger.exception(f'Failed to initialize {self.__class__.__name__}')
+            logger.exception(f'❌ Failed to initialize {self.__class__.__name__}')
             
     def get_email_ids(self, mailbox, email_from_1, email_from_2):
         try:
@@ -88,6 +89,7 @@ class Email():
                 self.imap_mail.logout()
             if self.smtp_mail:
                 self.smtp_mail.quit()
+            logger.info('Logout Successful 🎉')
         except Exception:
             logger.exception(f'Error in: {inspect.currentframe().f_code.co_name}')
 
@@ -96,7 +98,7 @@ class EmailParser():
         try:
             self.soup = BeautifulSoup(email_html, parser)
         except Exception:
-            logger.exception(f'Error in: {inspect.currentframe().f_code.co_name}')
+            logger.exception(f'❌ Failed to initialize {self.__class__.__name__}')
             
     def prettify(self):
         try:
@@ -246,7 +248,7 @@ class File():
             elif type in ('txt', 'tsv'):
                 self.doc = open(self.file_path, mode=mode)
         except Exception:
-            logger.exception(f'Failed to initialize {self.__class__.__name__} with file: {path}')
+            logger.exception(f'❌ Failed to initialize {self.__class__.__name__} with file: {path}')
 
     def read(self, delimiter='\t'):
         try:
