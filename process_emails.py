@@ -164,6 +164,6 @@ def main():
             proccess_email(mail=mail, email_ids=email_ids, id=i)
             logger.info(f'Processed email {i}')
         email_utils_beta.convert_file(excel_file_path, shipping_txt_file, sheet=sheet_name)
-        logger.info('Script finished')
+        logger.info("✅ Script finished\n" + "-" * 80 + "\n")
     except Exception:
         logger.exception(f'Error: {inspect.currentframe().f_code.co_name}')
