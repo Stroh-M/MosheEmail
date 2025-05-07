@@ -1,7 +1,9 @@
-import error, email_handling, re, os, email_utils_beta, logging, datetime
+import error, email_handling, re, os, email_utils_beta, logging, datetime, inspect
 from dotenv import load_dotenv #type: ignore
 
 load_dotenv(override=True)
+
+logger = logging.getLogger(__name__)
 
 recipient_1 = os.getenv("RECIPIENT_1")
 recipient_2 = os.getenv("RECIPIENT_2")
@@ -118,7 +120,8 @@ def proccess_email(mail, email_ids, id):
         if not result_amazon:
             result_walmart = handle_walmart_orders(walmart_order_excel_file, name=name, zip=zip, tracking=tracking[0], sheet='Po Details')
             if not result_walmart:
-                print(f'{name}, {zip}, {order[0]}, couldn''t find match in Amazon or Walmart')        
+                print(f'{name}, {zip}, {order[0]}, couldn''t find match in Amazon or Walmart') 
+                logger.info(f'{name}, {zip}, {order}, coudn''t find match in Amazon or Walmart')       
         
         if result_amazon:
             mail.mark_email_as_trash(email_ids[id])
@@ -127,33 +130,39 @@ def proccess_email(mail, email_ids, id):
     except error.No_Shipping_Address as nsa_e:
         mail.send_message('No Shipping Address', recipients, str(nsa_e))
         mail.mark_email_as_trash(email_ids[id]) 
+        logger.exception('Could not find shipping address and email sent')
     except error.No_Tracking_Number as ntn_e:
         mail.send_message('No Tracking Number', recipients, str(ntn_e))
-        mail.mark_email_as_trash(email_ids[id])   
-    except Exception as e:
-        print(f'Error: {e}')
+        mail.mark_email_as_trash(email_ids[id])
+        logger.exception(f'Could not find tracking number and email sent')   
+    except Exception:
+        logger.exception(f'Error in: {inspect.currentframe().f_code.co_name}')
     
 def clear_amazon_shippment_excel(path, sheet):
     try:
         a_ws = email_handling.File(path=path, type='xlsx', sheet=sheet)
         a_ws.delete_all_cells()
         a_ws.save()
-    except Exception as e:
-        print(f'Error: {e}')
+    except Exception:
+        logger.exception(f'Error in: {inspect.currentframe().f_code.co_name}')
     
 def main():
-    email_address = os.getenv("EMAIL_ADDRESS")
-    email_password = os.getenv("EMAIL_PASSWORD")
-    email_from_1 = os.getenv("EMAIL_FROM_1")
-    email_from_2 = os.getenv("EMAIL_FROM_2")
-    excel_file_path = os.getenv("EXCEL_FILE_PATH")
-    sheet_name = os.getenv("SHEET_NAME")
-        
-    mail = email_handling.Email(email_address, email_password)
-    email_ids = mail.get_email_ids('INBOX', email_from_1=email_from_1, email_from_2=email_from_2)
-        
-    clear_amazon_shippment_excel(excel_file_path, sheet=sheet_name)
-    for i in range(len(email_ids)):    
-        proccess_email(mail=mail, email_ids=email_ids, id=i)
-        print(f'---------process email {i}')
-    email_utils_beta.convert_file(excel_file_path, shipping_txt_file, sheet=sheet_name)
+    try:
+        logger.info('Started Running')
+        email_address = os.getenv("EMAIL_ADDRESS")
+        email_password = os.getenv("EMAIL_PASSWORD")
+        email_from_1 = os.getenv("EMAIL_FROM_1")
+        email_from_2 = os.getenv("EMAIL_FROM_2")
+        excel_file_path = os.getenv("EXCEL_FILE_PATH")
+        sheet_name = os.getenv("SHEET_NAME")
+            
+        mail = email_handling.Email(email_address, email_password)
+        email_ids = mail.get_email_ids('INBOX', email_from_1=email_from_1, email_from_2=email_from_2)
+            
+        clear_amazon_shippment_excel(excel_file_path, sheet=sheet_name)
+        for i in range(len(email_ids)):    
+            proccess_email(mail=mail, email_ids=email_ids, id=i)
+            logger.info(f'Processed email {i}')
+        email_utils_beta.convert_file(excel_file_path, shipping_txt_file, sheet=sheet_name)
+    except Exception:
+        logger.exception(f'Error: {inspect.currentframe().f_code.co_name}')
