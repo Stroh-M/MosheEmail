@@ -10,7 +10,6 @@ recipient_2 = os.getenv("RECIPIENT_2")
 excel_file_path = os.getenv("EXCEL_FILE_PATH")
 tsv_file_path = os.getenv("TSV_FILE_PATH")
 sheet_name = os.getenv("SHEET_NAME")
-error_excel_path = os.getenv("ERROR_EXCEL_PATH")
 shipping_txt_file = os.getenv("SHIPPING_TXT_FILE")
 walmart_order_excel_file = os.getenv("WALMART_ORDER_EXCEL_FILE")
         
