@@ -20,6 +20,7 @@ last_log = ""
 window = tk.Tk()
 window.geometry('800x600')
 window.title("Email Handling")
+window.configure(bg="lightgray")
 
 def run_script():
     Thread(target=process_emails.main, daemon=True).start()
@@ -60,8 +61,8 @@ def read_log():
     window.after(1000, read_log)
 
 
-runScriptButton = tk.Button(window, text='Run Script', command=run_script)
-runScriptButton.pack()
+runScriptButton = tk.Button(window, text='Run Script', command=run_script, padx=20, pady=10, bg="lightgreen", relief="groove", borderwidth=1, font=("Segoe UI", 13, "bold") )
+runScriptButton.pack(pady=(10, 10))
 
 text = st.ScrolledText(window)
 
@@ -75,5 +76,6 @@ text.pack(fill=tk.BOTH, expand=True)
 
 
 read_log()
+text.see(tk.END)
 
 window.mainloop()
