@@ -148,7 +148,7 @@ def clear_amazon_shippment_excel(path, sheet):
     
 def main():
     try:
-        logger.info('Started Running')
+        logger.info('Script started')
         email_address = os.getenv("EMAIL_ADDRESS")
         email_password = os.getenv("EMAIL_PASSWORD")
         email_from_1 = os.getenv("EMAIL_FROM_1")
@@ -164,5 +164,6 @@ def main():
             proccess_email(mail=mail, email_ids=email_ids, id=i)
             logger.info(f'Processed email {i}')
         email_utils_beta.convert_file(excel_file_path, shipping_txt_file, sheet=sheet_name)
+        logger.info('Script finished')
     except Exception:
         logger.exception(f'Error: {inspect.currentframe().f_code.co_name}')
