@@ -15,7 +15,6 @@ RECIPIENT_2=recipient2@example.com
 TSV_FILE_PATH=/path/to/data.tsv
 EXCEL_FILE_PATH=/path/to/output.xlsx
 SHEET_NAME=YourSheetName
-ERROR_EXCEL_PATH=/path/to/error_log.xlsx
 
 SHIPPING_TXT_FILE=/path/to/shipping_output.txt
 WALMART_ORDER_EXCEL_FILE=/path/to/walmart_orders.xlsx
