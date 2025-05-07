@@ -1,4 +1,4 @@
-import email_handling, requests, error, logging  #type:ignore
+import email_handling, requests, error, logging, inspect #type:ignore
 import pandas as pd #type:ignore
 
 logger = logging.getLogger(__name__)
@@ -13,8 +13,7 @@ def get_carrier(tracking_number):
         elif tracking_number.startswith('92') or tracking_number.startswith('94'):
             return 'USPS'
     except Exception as e:
-        print(f'Error: {e}')
-        logger.exception("Error: during get_carrier()")
+        logger.exception(f"Error: {inspect.currentframe().f_code.co_name}")
     
     
 def get_backup_tracking(url):
@@ -51,6 +50,7 @@ def get_backup_tracking(url):
                 logger.info('Got tracking from url provided in email')
                 return tracking
             if i >= 2 or tracking is not None:
+                logger.info(f'loop in {inspect.currentframe().f_code.co_name} ended after {i +1} times')
                 status = False
             i += 1
     except Exception:
@@ -62,4 +62,4 @@ def convert_file(file_path, new_path, sheet):
         file_to_convert.to_csv(new_path, sep='\t')
         logger.info('Succefully converted to .tsv file')
     except Exception:
-        logger.exception('Error: during get convert_file()')
+        logger.exception(f'Error: {inspect.currentframe().f_code.co_name}')
