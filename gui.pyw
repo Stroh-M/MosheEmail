@@ -21,6 +21,7 @@ window = tk.Tk()
 window.geometry('800x600')
 window.title("Email Handling")
 window.configure(bg="lightgray")
+window.iconbitmap("icon.ico")
 
 def run_script():
     Thread(target=process_emails.main, daemon=True).start()
