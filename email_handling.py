@@ -246,7 +246,7 @@ class File():
                 self.workbook = openpyxl.load_workbook(self.file_path)
                 self.sheet = self.workbook[sheet]
             elif type in ('txt', 'tsv'):
-                self.doc = open(self.file_path, mode=mode)
+                self.doc = open(self.file_path, mode=mode, encoding='utf-8')
         except Exception:
             logger.exception(f'❌ Failed to initialize {self.__class__.__name__} with file: {path}')
 
