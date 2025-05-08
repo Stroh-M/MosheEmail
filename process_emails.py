@@ -41,8 +41,8 @@ def handle_amazon_orders(txt_path, name, zip, tracking, excel_path, sheet):
             return True
         else:
             return False
-    except Exception as e:
-        print(f'Error: {e}')
+    except Exception:
+        logger.exception(f'Error in: {inspect.currentframe().f_code.co_name}')
         
 def handle_walmart_orders(path, name, zip, tracking, sheet):
     try:
@@ -64,8 +64,8 @@ def handle_walmart_orders(path, name, zip, tracking, sheet):
             return True
         else:
             return False
-    except Exception as e:
-        print(f'Error: {e}') 
+    except Exception:
+        logger.exception(f'Error in: {inspect.currentframe().f_code.co_name}')
         
 def proccess_email(mail, email_ids, id):
     ebay_tracking_pattern = re.compile(r'Tracking number\s*:\s*(\S+)', re.IGNORECASE)
@@ -77,6 +77,9 @@ def proccess_email(mail, email_ids, id):
     keurig_order_pattern = re.compile(r'Order\s*#\s*:\s*(\S+)', re.IGNORECASE)
     
     recipients = [recipient_1, recipient_2]
+    
+    result_amazon = False
+    result_walmart = False
 
     try:
         email_html = mail.get_html(email_id=email_ids[id])
@@ -119,13 +122,14 @@ def proccess_email(mail, email_ids, id):
         if not result_amazon:
             result_walmart = handle_walmart_orders(walmart_order_excel_file, name=name, zip=zip, tracking=tracking[0], sheet='Po Details')
             if not result_walmart:
-                print(f'{name}, {zip}, {order[0]}, couldn''t find match in Amazon or Walmart') 
-                logger.info(f'{name}, {zip}, {order}, coudn''t find match in Amazon or Walmart')       
-        
+                logger.info(f'{id}, {name}, {zip}, {order}, coudn''t find match in Amazon or Walmart')
+
         if result_amazon:
             mail.mark_email_as_trash(email_ids[id])
+            logger.info(f"Added {id} to amazon")
         elif result_walmart:
             mail.mark_email_as_trash(email_ids[id])   
+            logger.info(f"Added {id} to walmart")
     except error.No_Shipping_Address as nsa_e:
         mail.send_message('No Shipping Address', recipients, str(nsa_e))
         mail.mark_email_as_trash(email_ids[id]) 
