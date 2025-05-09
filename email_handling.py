@@ -1,6 +1,6 @@
 import email.utils
 import pandas as pd #type: ignore
-import imaplib, smtplib, email, pytz, re, openpyxl, csv, traceback, zipfile, logging, inspect #type: ignore
+import imaplib, smtplib, email, pytz, re, openpyxl, csv, logging, inspect #type: ignore
 from bs4 import BeautifulSoup #type: ignore
 from email.message import EmailMessage
 
