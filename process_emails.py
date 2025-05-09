@@ -20,7 +20,7 @@ def handle_amazon_orders(txt_path, name, zip, tracking, excel_path, sheet):
         print(name)
         for row_n, row in enumerate(a_o.read()):
             if len(row) > 0:
-                if name.lower().replace('.', '') in email_handling.EmailParser.remove_space_from_middle_of_string(None, string=row[17].lower().replace('.', '')) and zip in row[23]:
+                if name.lower().replace('.', '') in email_handling.EmailParser.remove_space_from_middle_of_string(None, string=row[17].lower().replace('.', '').replace('-', '')) and zip in row[23]:
                     
                     found_match_amazon = True
                     amazon_order_id = row[0]
